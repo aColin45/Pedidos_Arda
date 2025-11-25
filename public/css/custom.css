@@ -1,0 +1,156 @@
+/* ======================================= */
+/* 1. COLOR DEL SISTEMA (PANTONE 280 C: #142667) */
+/* ======================================= */
+
+/* Fondo azul oscuro para el sidebar */
+.app-sidebar,
+.app-sidebar .sidebar-wrapper {
+    background-color: #142667 !important;
+}
+
+/* Fondo azul del logo/brand */
+.brand-link {
+    background-color: #142667 !important;
+}
+
+/* Texto e Íconos Blancos (Menú no activo y Título) */
+.app-sidebar .nav-link,
+.app-sidebar .nav-link p,
+.app-sidebar .brand-text,
+.app-sidebar .nav-icon {
+    color: #ffffff !important;
+}
+
+/* ----------------------------------------------------- */
+/* 2. ITEM ACTIVO (Amarillo de acento) */
+/* ----------------------------------------------------- */
+
+/* Fondo del ítem activo en amarillo */
+.nav-sidebar .nav-link.active {
+    background-color: #F2DA43 !important;
+}
+
+/* Texto e Ícono del ítem activo en azul oscuro (contraste) */
+.nav-sidebar .nav-link.active p,
+.nav-sidebar .nav-link.active i {
+    color: #142667 !important;
+}
+
+/* ----------------------------------------------------- */
+/* 3. TAMAÑO Y PROPORCIÓN DEL LOGO */
+/* ----------------------------------------------------- */
+
+/* Contenedor para alinear verticalmente */
+.brand-link {
+    display: flex;
+    align-items: center;
+}
+
+/* Ajuste del tamaño del logo (clase arda-logo) */
+.arda-logo {
+    max-height: 45px !important;
+    width: auto !important;
+    margin-left: 0.5rem;
+}
+
+/* Ajuste del tamaño del texto del título (proporcional al logo) */
+.brand-text.arda-titulo {
+    font-size: 1.2rem !important;
+    font-weight: 600 !important;
+    padding-left: 0.5rem;
+}
+
+/* ======================================= */
+/* 4. ESTILOS DE LA TIENDA PÚBLICA (WEB)   */
+/* ======================================= */
+
+/* Variables de color para la tienda */
+body.store-theme:root { /* Definir variables solo en el contexto de la tienda */
+    --color-primario-arda: #142667;  /* Tu azul corporativo */
+    --color-secundario-arda: #F2DA43; /* Tu amarillo corporativo */
+    --color-fondo-claro: #f4f6f9;   /* Un gris muy claro para el fondo */
+}
+
+/* Fondo general de la tienda */
+body.store-theme {
+    background-color: var(--color-fondo-claro, #f4f6f9); /* Añadir fallback */
+}
+
+/* Barra de Navegación (azul) */
+.navbar-store {
+    background-color: var(--color-primario-arda, #142667) !important;
+}
+
+/* Banner/Header (azul) */
+.store-header {
+    background-color: var(--color-primario-arda, #142667) !important;
+    background-image: none !important;
+}
+
+/* Botones principales tienda (amarillo) */
+body.store-theme .btn-primary { /* Alcance más específico */
+    background-color: var(--color-secundario-arda, #F2DA43);
+    border-color: var(--color-secundario-arda, #F2DA43);
+    color: var(--color-primario-arda, #142667) !important;
+    font-weight: bold;
+}
+body.store-theme .btn-primary:hover {
+    background-color: #e0c83e; /* Amarillo más oscuro */
+    border-color: #e0c83e;
+    color: var(--color-primario-arda, #142667);
+}
+
+/* Botón del carrito tienda (outline amarillo) */
+body.store-theme .btn-outline-dark {
+    color: var(--color-secundario-arda, #F2DA43);
+    border-color: var(--color-secundario-arda, #F2DA43);
+}
+body.store-theme .btn-outline-dark:hover {
+    color: var(--color-primario-arda, #142667);
+    background-color: var(--color-secundario-arda, #F2DA43);
+    border-color: var(--color-secundario-arda, #F2DA43);
+}
+
+/* Títulos tienda */
+body.store-theme h2,
+body.store-theme h5 { /* Alcance más específico */
+   color: var(--color-primario-arda, #142667);
+   font-weight: 600;
+}
+
+/* Footer tienda (azul) */
+.store-footer {
+    background-color: var(--color-primario-arda, #142667) !important;
+    background-image: none !important;
+    color: #ffffff !important;
+}
+
+/* Link ARDA footer tienda (amarillo) */
+/* (Asegúrate que tu link en web/partials/footer.blade.php tenga esta clase) */
+.store-footer .footer-link-arda {
+    color: var(--color-secundario-arda, #F2DA43);
+    font-weight: 600;
+}
+.store-footer .footer-link-arda:hover {
+    color: #f5e06a;
+}
+
+/* ======================================= */
+/* 5. ESTILOS DEL FOOTER (ADMIN)           */
+/* ======================================= */
+
+/* Forzamos el color del texto principal del footer a ser claro si no hereda bien */
+/*.main-footer {
+    /* Puedes ajustar el color si el default de AdminLTE no es blanco */
+    /* color: #ffffff;
+}
+*/
+
+/* El link de ARDA en el footer del admin */
+.main-footer .footer-link-arda {
+    color: #142667; 
+    font-weight: 600;
+}
+.main-footer .footer-link-arda:hover {
+    color: #0558c4; 
+}
