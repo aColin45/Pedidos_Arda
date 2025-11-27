@@ -23,22 +23,22 @@
                         {{-- Columna Datos de Contacto --}}
                         <td width="60%" valign="top" style="font-size: 12px; color: #555;">
                             {{-- <p style="margin: 0 0 5px 0; font-weight: bold; color: #0d284a;">Ricardo Mejia Martinez</p> --}}
-                            {{-- <p style="margin: 0 0 10px 0; color: #0d284a;">Sistemas</p> --}}
+                            <p style="margin: 0 0 10px 0; color: #0d284a;">Departamento de Sistemas</p>
                             
                             <p style="margin: 0 0 5px 0;">
                                 <span style="color: #0d284a; font-weight: bold;">📍 Dirección:</span> Circuito de la Industria Norte 32, Zona Industrial Lerma, Estado de México, CP. 52000
                             </p>
-                            <p style="margin: 0 0 5px 0;">
+                            {{-- <p style="margin: 0 0 5px 0;">
                                 <span style="color: #0d284a; font-weight: bold;">📞 Teléfono:</span> (728) 282-4148 Ext. 108
-                            </p>
+                            </p> --}}
                             {{-- <p style="margin: 0 0 5px 0;">
                                 <span style="color: #0d284a; font-weight: bold;">📱 Móvil:</span> (+52) 729 1616 939
                             </p> --}}
                             <p style="margin: 0 0 5px 0;">
-                                <span style="color: #0d284a; font-weight: bold;">✉️ Email:</span> <a href="mailto:soporte@arda.com.mx" style="color: #1a0dab; text-decoration: none;">soporte@arda.com.mx</a> {{-- Usar un email genérico --}}
+                                <span style="color: #0d284a; font-weight: bold;">✉️ Email:</span> <a href="mailto:sistemas@arda.com.mx" style="color: #1a0dab; text-decoration: none;">sistemas@arda.com.mx</a>
                             </p>
                             <p style="margin: 0;">
-                                <span style="color: #0d284a; font-weight: bold;">🌐 Web:</span> <a href="http://www.arda.com.mx" target="_blank" style="color: #1a0dab; text-decoration: none;">www.arda.com.mx</a>
+                                <span style="color: #0d284a; font-weight: bold;">🌐 Web:</span> <a href="https://arda.com.mx/" target="_blank" style="color: #1a0dab; text-decoration: none;">arda.com.mx</a>
                             </p>
                         </td>
                     </tr>
@@ -60,7 +60,7 @@
                 
                 {{-- Botón para restablecer --}}
                 <p style="text-align: center; margin: 30px 0;">
-                    <a href="{{ url(config('app.url').route('password.reset', $token, false)) }}" 
+                    <a href="{{ url('/password/reset/'.$token) }}"
                        style="background-color: #fecb00; color: #0d284a; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
                        Restablecer Contraseña
                     </a>
