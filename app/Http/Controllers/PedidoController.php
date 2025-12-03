@@ -143,7 +143,7 @@ class PedidoController extends Controller
         $user = Auth::user();
 
         // Validación de Pertenencia (Admin puede para cualquiera, Agente solo los suyos o General)
-        if (!$user->hasRole('admin') && $cliente->codigo !== 'GENERAL' && $cliente->user_id !== $user->id) {
+        if (!$user->hasRole('admin') && $cliente->codigo !== 'GENERAL' && $cliente->user_id != $user->id) {
              return redirect()->back()->with('error', 'El cliente seleccionado no le pertenece.');
         }
 
