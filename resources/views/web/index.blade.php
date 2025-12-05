@@ -1,6 +1,5 @@
 @extends('web.app')
 
-{{-- Incluir el header si esta página debe mostrar el banner --}}
 @section('header')
 @endsection
 
@@ -24,10 +23,8 @@
             <div class="col-md-4 mb-3">
                 <div class="input-group">
                     <label class="input-group-text" for="sortSelect">Ordenar por:</label>
-                    {{-- Añadir onchange="this.form.submit()" para que ordene al seleccionar --}}
                     <select class="form-select" id="sortSelect" name="sort" onchange="this.form.submit()">
-                        {{-- <option value="">Relevancia</option> --}} {{-- Podrías añadir una opción por defecto --}}
-                        <option value="priceAsc" {{ request('sort', 'priceAsc') == 'priceAsc' ? 'selected' : '' }}>Precio: menor a mayor</option> {{-- Marcar una por defecto --}}
+                        <option value="priceAsc" {{ request('sort', 'priceAsc') == 'priceAsc' ? 'selected' : '' }}>Precio: menor a mayor</option>
                         <option value="priceDesc" {{ request('sort') == 'priceDesc' ? 'selected' : '' }}>Precio: mayor a menor</option>
                     </select>
                 </div>
@@ -36,44 +33,65 @@
     </div>
 </form>
 
+<!-- Sección de Productos -->
 <section class="py-5">
     <div class="container px-4 px-lg-5 mt-1">
-        {{-- Grid Responsivo para Productos --}}
         <div class="row gx-4 gx-lg-5 row-cols-2 row-cols-md-3 row-cols-xl-4 justify-content-center">
             @forelse($productos as $producto)
             <div class="col mb-5">
-                <div class="card h-100 shadow-sm"> {{-- Añadida sombra sutil --}}
-                    {{-- Enlace a la vista de detalle del producto --}}
+                <div class="card h-100 shadow-sm">
+                    <!-- Imagen del Producto -->
                     <a href="{{route('web.show', $producto->id)}}">
-                        {{-- Manejo de imagen nula con placeholder --}}
                         <img class="card-img-top"
                              src="{{ $producto->imagen ? asset('uploads/productos/'. $producto->imagen) : asset('assets/img/placeholder.png') }}"
                              alt="{{$producto->nombre}}"
-                             style="height: 200px; object-fit: cover;" /> {{-- Altura fija y object-fit --}}
+                             style="height: 200px; object-fit: cover;" />
                     </a>
+                    
+                    <!-- Detalles del Producto -->
                     <div class="card-body p-4">
                         <div class="text-center">
-                            {{-- Enlace también en el nombre --}}
                             <h5 class="fw-bolder">
-                                <a href="{{route('web.show', $producto->id)}}" class="text-dark text-decoration-none stretched-link">
+                                <a href="{{route('web.show', $producto->id)}}" class="text-dark text-decoration-none">
                                     {{$producto->nombre}}
                                 </a>
                             </h5>
                             <span class="text-muted fs-5">${{number_format($producto->precio, 2)}}</span>
-                             {{-- Mostrar si no aplica IVA --}}
+                            
                              @if(!$producto->aplica_iva)
-                                 <small class="d-block text-secondary">(No aplica IVA)</small>
+                                 <small class="d-block text-success mt-1">(No aplica IVA)</small>
                              @endif
+
+                             {{-- Mostrar Inner --}}
+                                <small class="d-block text-info mt-1 fw-bold">Inner: {{ $producto->inner }} pzas</small>
                         </div>
                     </div>
-                    <div class="card-footer p-3 pt-0 border-top-0 bg-transparent"> {{-- Reducido padding --}}
-                        {{-- El botón "Ver producto" ya está enlazado arriba, podríamos poner "Añadir al carrito" aquí --}}
-                        {{-- O mantener "Ver producto" si prefieres --}}
-                        <div class="text-center">
-                            <a class="btn btn-primary mt-auto" href="{{route('web.show', $producto->id)}}">
-                                Ver producto
-                            </a>
-                        </div>
+                    
+                    <!-- Acciones del Producto -->
+                    <div class="card-footer p-3 pt-0 border-top-0 bg-transparent">
+                        
+                        {{-- Formulario para agregar al carrito directamente --}}
+                        <form action="{{ route('carrito.agregar') }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="producto_id" value="{{ $producto->id }}">
+                            
+                            {{-- Input de cantidad (oculto o visible si quieres que elijan cantidad) --}}
+                            {{-- Por defecto agregamos 1 inner --}}
+                            <input type="hidden" name="cantidad" value="{{ $producto->inner ?? 1 }}">
+
+                            <div class="d-grid gap-2">
+                                {{-- Botón Agregar al Carrito --}}
+                                <button type="submit" class="btn btn-outline-dark mt-auto">
+                                    <i class="bi bi-cart-plus"></i> Agregar
+                                </button>
+                                
+                                {{-- Botón Ver Producto --}}
+                                <a class="btn btn-primary mt-auto" href="{{route('web.show', $producto->id)}}">
+                                    Ver producto
+                                </a>
+                            </div>
+                        </form>
+
                     </div>
                 </div>
             </div>
@@ -86,7 +104,6 @@
 
         {{-- Paginación Centrada --}}
         <div class="d-flex justify-content-center mt-4">
-             {{-- Asegurarse que appends incluya todos los filtros activos --}}
              {{ $productos->appends(request()->query())->links() }}
         </div>
     </div>

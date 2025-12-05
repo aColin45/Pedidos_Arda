@@ -5,16 +5,25 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Producto;
 use App\Models\Cliente; // Necesario para gestionar los clientes
-use App\Models\User;   // Necesario para verificar roles (si no se usa auth()->user()->hasRole directamente)
+use App\Models\User;    // Necesario para verificar roles
 
 class WebController extends Controller
 {
     // Método existente para la vista principal de la tienda
     public function index(Request $request){
-        $query=Producto::query();
-        // Búsqueda por nombre
+        $query = Producto::query();
+
+        // ==========================================
+        //  MODIFICACIÓN DE BÚSQUEDA (Nombre O Código)
+        // ==========================================
         if ($request->has('search') && $request->search) {
-            $query->where('nombre', 'like', '%' . $request->search . '%');
+            $busqueda = $request->search;
+            // Usamos una función anónima (closure) para agrupar el OR
+            // Esto asegura que la lógica sea: (Nombre LIKE ... OR Codigo LIKE ...)
+            $query->where(function($q) use ($busqueda) {
+                $q->where('nombre', 'like', '%' . $busqueda . '%')
+                  ->orWhere('codigo', 'like', '%' . $busqueda . '%');
+            });
         }
 
         // Filtro de orden (Ordenar por precio)
@@ -31,6 +40,7 @@ class WebController extends Controller
                     break;
             }
         }
+        
         // Obtener productos filtrados
         $productos = $query->paginate(10);     
         return view('web.index', compact('productos'));

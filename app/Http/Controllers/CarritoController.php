@@ -190,6 +190,39 @@ class CarritoController extends Controller
     }
 
     /**
+     * NUEVA FUNCIÓN: Actualiza la cantidad manualmente validando el Inner.
+     * Esta función se llama desde el JavaScript de la vista.
+     */
+    public function actualizar($producto_id, $cantidad)
+    {
+        $carrito = session()->get('carrito', []);
+
+        if (isset($carrito[$producto_id])) {
+            // Obtener el inner guardado en la sesión
+            $inner = $carrito[$producto_id]['inner'] ?? 1;
+
+            // Validación de seguridad (Backend)
+            if ($cantidad < 1) {
+                 return redirect()->back()->with('error', "La cantidad debe ser mayor a 0.");
+            }
+            
+            // Validación de Múltiplo
+            if ($cantidad % $inner != 0) {
+                return redirect()->back()->with('error', "La cantidad debe ser múltiplo de $inner (Ej: $inner, " . ($inner*2) . "...).");
+            }
+
+            // Si pasa las validaciones, actualizamos
+            $carrito[$producto_id]['cantidad'] = $cantidad;
+            session()->put('carrito', $carrito);
+            
+            return redirect()->back()->with('mensaje', 'Cantidad actualizada manualmente.');
+        }
+
+        return redirect()->back()->with('error', 'Producto no encontrado en el carrito.');
+    }
+
+
+    /**
      * Elimina un producto completamente del carrito.
      */
     public function eliminar($id){

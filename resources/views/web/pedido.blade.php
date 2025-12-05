@@ -25,14 +25,13 @@
                         @forelse($carrito as $id => $item)
                         {{-- Estructura de Fila para cada item --}}
                         <div class="row align-items-center mb-3 cart-item border-bottom pb-3">
-                            {{-- Borde inferior para separar en móvil --}}
-
+                            
                             {{-- Columna Producto (Siempre visible) --}}
-                            <div class="col-12 col-md-4 mb-2 mb-md-0"> {{-- Ocupa todo el ancho en móvil --}}
+                            <div class="col-12 col-md-4 mb-2 mb-md-0"> 
                                 <div class="d-flex align-items-center">
                                     <img src="{{ $item['imagen'] ? asset('uploads/productos/' . $item['imagen']) : asset('assets/img/placeholder.png') }}"
-                                        style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;"
-                                        alt="{{ $item['nombre'] ?? 'Producto' }}">
+                                         style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;"
+                                         alt="{{ $item['nombre'] ?? 'Producto' }}">
                                     <div class="ms-3">
                                         <h6 class="mb-0">{{ $item['nombre'] ?? 'N/A' }}</h6>
                                         <small class="text-muted d-block">{{ $item['codigo'] ?? 'N/A' }}</small>
@@ -49,31 +48,43 @@
 
                             {{-- Columnas Precio e Inner (Agrupadas en móvil) --}}
                             <div class="col-6 col-md-2 text-center text-md-center">
-                                <small class="text-muted d-md-none">Precio:</small> {{-- Etiqueta para móvil --}}
-                                <span
-                                    class="fw-bold d-block d-md-inline">${{ number_format($item['precio'] ?? 0, 2) }}</span>
+                                <small class="text-muted d-md-none">Precio:</small> 
+                                <span class="fw-bold d-block d-md-inline">${{ number_format($item['precio'] ?? 0, 2) }}</span>
                             </div>
                             <div class="col-6 col-md-2 text-center text-md-center">
-                                <small class="text-muted d-md-none">Inner:</small> {{-- Etiqueta para móvil --}}
+                                <small class="text-muted d-md-none">Inner:</small> 
                                 <span class="text-muted d-block d-md-inline">{{ $item['inner'] ?? 1 }}</span>
                             </div>
 
-                            {{-- Columna Cantidad --}}
+                            {{-- Columna Cantidad (MODIFICADA PARA EDICIÓN MANUAL) --}}
                             <div class="col-6 col-md-2 d-flex justify-content-center align-items-center mt-2 mt-md-0">
-                                <small class="text-muted d-md-none me-2">Cant:</small> {{-- Etiqueta para móvil --}}
-                                <div class="input-group input-group-sm" style="max-width: 100px;">
+                                <small class="text-muted d-md-none me-2">Cant:</small> 
+                                <div class="input-group input-group-sm" style="max-width: 120px;">
+                                    {{-- Botón Restar --}}
                                     <a class="btn btn-outline-secondary"
-                                        href="{{ route('carrito.restar', ['producto_id' => $id]) }}"> - </a>
-                                    <input type="text" class="form-control text-center px-1"
-                                        value="{{ $item['cantidad'] ?? 0 }}" readonly>
+                                       href="{{ route('carrito.restar', ['producto_id' => $id]) }}"> - </a>
+                                    
+                                    {{-- INPUT EDITABLE 
+                                         - step: Ayuda a sumar de inner en inner con flechas del teclado/navegador
+                                         - onchange: Dispara la función JS validarCantidad
+                                    --}}
+                                    <input type="number" 
+                                           class="form-control text-center px-1"
+                                           value="{{ $item['cantidad'] ?? 0 }}" 
+                                           min="{{ $item['inner'] ?? 1 }}"
+                                           step="{{ $item['inner'] ?? 1 }}"
+                                           onchange="validarCantidad(this, '{{ $id }}', {{ $item['inner'] ?? 1 }})"
+                                    >
+                                    
+                                    {{-- Botón Sumar --}}
                                     <a href="{{ route('carrito.sumar', ['producto_id' => $id]) }}"
-                                        class="btn btn-outline-secondary"> + </a>
+                                       class="btn btn-outline-secondary"> + </a>
                                 </div>
                             </div>
 
                             {{-- Columna Subtotal y Eliminar --}}
                             <div class="col-6 col-md-2 d-flex align-items-center justify-content-end mt-2 mt-md-0">
-                                <small class="text-muted d-md-none me-2">Subt:</small> {{-- Etiqueta para móvil --}}
+                                <small class="text-muted d-md-none me-2">Subt:</small> 
                                 <div class="text-end me-2 me-md-3">
                                     <span class="fw-bold subtotal">
                                         ${{ number_format(($item['precio'] ?? 0) * ($item['cantidad'] ?? 0), 2) }}
@@ -85,7 +96,7 @@
                             </div>
 
                         </div> {{-- Fin .row .cart-item --}}
-                        {{-- <hr class="d-md-none"> --}} {{-- Quitar hr original, usamos border-bottom --}}
+                        
                         @empty
                         <div class="text-center">
                             <p>Tu carrito esta vacío</p>
@@ -120,21 +131,18 @@
                 </div>
             </div>
 
+            {{-- RESUMEN Y CHECKOUT (Sin cambios en lógica, solo visualización) --}}
             <div class="col-lg-4">
                 <div class="card">
                     <div class="card-header bg-light">
                         <h5 class="mb-0">Resumen del Pedido</h5>
                     </div>
 
-                    {{-- ======================================================= --}}
-                    {{-- ||       INICIA RESUMEN PEDIDO            || --}}
-                    {{-- ======================================================= --}}
-                    {{-- Añadimos data-attributes para los subtotales netos calculados en PHP --}}
                     <div class="card-body" id="resumen-pedido-card" data-subtotal-bruto="{{ $subtotalBruto ?? 0 }}"
                         data-subtotal-gravable="{{ $subtotalNetoGravable ?? 0 }}"
                         data-subtotal-exento="{{ $subtotalNetoExento ?? 0 }}">
 
-                        {{-- Cliente en Curso (Si aplica) --}}
+                        {{-- Cliente en Curso --}}
                         @if(session('current_client_name'))
                         <div class="alert alert-info py-2 mb-3">
                             Pedido para: <strong>{{ session('current_client_name') }}</strong>
@@ -168,7 +176,7 @@
                                 id="resumen-subtotal-neto-exento">${{ number_format($subtotalNetoExento ?? 0, 2) }}</span>
                         </div>
 
-                        {{-- Monto de IVA (calculado solo sobre gravable) --}}
+                        {{-- Monto de IVA --}}
                         <div class="d-flex justify-content-between mb-2">
                             <span>IVA (16%)</span>
                             <span id="resumen-iva-monto">+${{ number_format($montoIVA ?? 0, 2) }}</span>
@@ -181,9 +189,6 @@
                             <strong>Total Final</strong>
                             <strong id="orderTotal">${{ number_format($totalFinal ?? 0, 2) }}</strong>
                         </div>
-                        {{-- ======================================================= --}}
-                        {{-- ||       TERMINA RESUMEN PEDIDO           || --}}
-                        {{-- ======================================================= --}}
 
 
                         <form action="{{route('pedido.realizar')}}" method="POST">
@@ -194,7 +199,7 @@
                                 <label for="comentarios" class="fw-bold mb-1">Comentarios u Observaciones
                                     (Opcional):</label>
                                 <textarea name="comentarios" id="comentarios" class="form-control" rows="3"
-                                    placeholder="Instrucciones especiales, mencionar si el cliente tiene algún otro descuento especial para los productos, etc.">{{ old('comentarios') }}</textarea>
+                                    placeholder="Instrucciones especiales...">{{ old('comentarios') }}</textarea>
                             </div>
 
                             {{-- Flete Pagado --}}
@@ -212,7 +217,6 @@
                                 <select name="cliente_id" id="cliente_id"
                                     class="form-select @error('cliente_id') is-invalid @enderror" required>
                                     <option value="">-- Seleccione un cliente --</option>
-                                    {{-- CAMBIO DE NOMBRE DE VARIABLE vvv --}}
                                     @forelse($clientesParaSelector as $cliente)
                                     <option value="{{ $cliente->id }}" data-descuento="{{ $cliente->descuento }}"
                                         {{ old('cliente_id', session('current_client_id')) == $cliente->id ? 'selected' : '' }}>
@@ -220,7 +224,6 @@
                                     </option>
                                     @empty
                                     <option value="" disabled>No hay clientes disponibles.</option>
-                                    {{-- Mensaje genérico --}}
                                     @endforelse
                                 </select>
                                 @error('cliente_id')
@@ -229,7 +232,6 @@
                             </div>
 
                             {{-- Botón Submit --}}
-                            {{-- CAMBIO DE NOMBRE DE VARIABLE vvv --}}
                             <button type="submit" class="btn btn-primary w-100" id="checkout"
                                 @if($clientesParaSelector->isEmpty()) disabled @endif>
                                 <i class="bi bi-credit-card me-1"></i>
@@ -248,67 +250,80 @@
 </section>
 
 {{-- ======================================================= --}}
-{{-- ||       INICIA SCRIPT JAVASCRIPT         || --}}
+{{-- ||       INICIA SCRIPT JAVASCRIPT        || --}}
 {{-- ======================================================= --}}
 <script>
+// --- FUNCIÓN DE VALIDACIÓN Y ACTUALIZACIÓN MANUAL ---
+function validarCantidad(input, idProducto, inner) {
+    let cantidad = parseInt(input.value);
+
+    // 1. Validar que sea número y mayor a 0
+    if (isNaN(cantidad) || cantidad < 1) {
+        alert("La cantidad debe ser mayor a 0");
+        location.reload(); // Recargar para deshacer cambios
+        return;
+    }
+
+    // 2. Validar que sea múltiplo del Inner
+    if (cantidad % inner !== 0) {
+        alert(`La cantidad debe ser múltiplo del Inner (${inner}).\nEjemplos válidos: ${inner}, ${inner*2}, ${inner*3}...`);
+        location.reload(); // Recargar para deshacer cambios
+        return;
+    }
+
+    // 3. Si todo está bien, redirigir a la ruta de actualización
+    // Creamos la URL usando el helper de Laravel pero con placeholders
+    // NOTA: Asegúrate de tener definida la ruta 'carrito.actualizar' en web.php
+    let urlBase = "{{ route('carrito.actualizar', ['producto_id' => 'ID_TEMP', 'cantidad' => 'CANT_TEMP']) }}";
+    
+    // Reemplazamos los marcadores con los datos reales
+    let urlFinal = urlBase.replace('ID_TEMP', idProducto).replace('CANT_TEMP', cantidad);
+    
+    // Redirigimos para procesar en backend
+    window.location.href = urlFinal;
+}
+
+// --- TU SCRIPT EXISTENTE DE TOTALES ---
 document.addEventListener('DOMContentLoaded', function() {
     const selectCliente = document.getElementById('cliente_id');
 
-    // Función para actualizar los totales
     function actualizarTotales() {
-        if (!selectCliente) return; // Salir si no existe el select
+        if (!selectCliente) return;
 
         const ivaTasa = 0.16;
         const selectedOption = selectCliente.options[selectCliente.selectedIndex];
-        // Asegurarse de que el valor sea numérico, si no, 0
         const descuentoPct = parseFloat(selectedOption.dataset.descuento) || 0;
 
         const resumenCard = document.getElementById('resumen-pedido-card');
         const subtotalBruto = parseFloat(resumenCard.dataset.subtotalBruto) || 0;
-        // Obtenemos los subtotales netos originales (calculados en PHP al cargar la página)
         const subtotalNetoGravableOriginal = parseFloat(resumenCard.dataset.subtotalGravable) || 0;
         const subtotalNetoExentoOriginal = parseFloat(resumenCard.dataset.subtotalExento) || 0;
-        // Suma de los netos originales para calcular proporción
         const subtotalNetoOriginalTotal = subtotalNetoGravableOriginal + subtotalNetoExentoOriginal;
 
-        // Calcular nuevo descuento total basado en el % seleccionado
         const montoDescuento = subtotalBruto * (descuentoPct / 100);
-        // Nuevo subtotal neto global después de aplicar el descuento
         const subtotalNetoTotalActual = subtotalBruto - montoDescuento;
 
-        // Recalcular las porciones gravable/exenta manteniendo la proporción original
         let subtotalNetoGravableActual = 0;
         let subtotalNetoExentoActual = 0;
-        // Evitar división por cero si el subtotal original era 0
-        if (subtotalNetoOriginalTotal > 0.001) { // Usar pequeña tolerancia por floats
-            // Proporción que representa la parte gravable del total neto original
+        
+        if (subtotalNetoOriginalTotal > 0.001) { 
             const proporcionGravable = subtotalNetoGravableOriginal / subtotalNetoOriginalTotal;
-            // Aplicar esa proporción al nuevo subtotal neto total
             subtotalNetoGravableActual = subtotalNetoTotalActual * proporcionGravable;
             subtotalNetoExentoActual = subtotalNetoTotalActual * (1 - proporcionGravable);
         } else {
-            // Si el subtotal original era 0 o casi 0, ambos siguen siendo 0
             subtotalNetoGravableActual = 0;
-            subtotalNetoExentoActual =
-            subtotalNetoTotalActual; // El neto es puramente exento si el original era 0
+            subtotalNetoExentoActual = subtotalNetoTotalActual; 
         }
 
-
-        // Calcular IVA SOLO sobre el nuevo subtotal gravable
         const montoIva = subtotalNetoGravableActual * ivaTasa;
-        // El total final es la suma de los netos (gravable + exento) + IVA
         const totalFinal = subtotalNetoGravableActual + subtotalNetoExentoActual + montoIva;
 
-        // Función para formatear (con manejo de NaN o valores no numéricos)
         const formatCurrency = (num) => {
-            const number = parseFloat(num); // Intenta convertir a número
-            if (isNaN(number)) {
-                return '$0.00'; // Valor por defecto si no es número
-            }
+            const number = parseFloat(num); 
+            if (isNaN(number)) return '$0.00';
             return `$${number.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
 
-        // Actualizar HTML (asegurarse de que los IDs existan)
         const descuentoTextoEl = document.getElementById('resumen-descuento-texto');
         if (descuentoTextoEl) descuentoTextoEl.innerText = `Descuento (${descuentoPct.toFixed(2)}%)`;
 
@@ -316,8 +331,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (descuentoMontoEl) descuentoMontoEl.innerText = `-${formatCurrency(montoDescuento)}`;
 
         const subtotalNetoGravableEl = document.getElementById('resumen-subtotal-neto-gravable');
-        if (subtotalNetoGravableEl) subtotalNetoGravableEl.innerText = formatCurrency(
-            subtotalNetoGravableActual);
+        if (subtotalNetoGravableEl) subtotalNetoGravableEl.innerText = formatCurrency(subtotalNetoGravableActual);
 
         const subtotalNetoExentoEl = document.getElementById('resumen-subtotal-neto-exento');
         if (subtotalNetoExentoEl) subtotalNetoExentoEl.innerText = formatCurrency(subtotalNetoExentoActual);
@@ -329,19 +343,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (orderTotalEl) orderTotalEl.innerText = formatCurrency(totalFinal);
     }
 
-    // Añadir listener al select
     if (selectCliente) {
         selectCliente.addEventListener('change', actualizarTotales);
-        // Llamar a la función al cargar la página por si ya hay un cliente seleccionado
-        // o si el carrito tiene contenido (para mostrar totales iniciales correctamente)
         if (selectCliente.value || document.querySelectorAll('#cartItems .cart-item').length > 0) {
             actualizarTotales();
         }
     }
 });
 </script>
-{{-- ======================================================= --}}
-{{-- ||       TERMINA SCRIPT JAVASCRIPT        || --}}
-{{-- ======================================================= --}}
-
 @endsection

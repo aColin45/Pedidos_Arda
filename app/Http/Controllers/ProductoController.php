@@ -16,12 +16,15 @@ class ProductoController extends Controller
     public function index(Request $request)
     {
         $this->authorize('producto-list');
-        $texto=$request->input('texto');
-        $query=Producto::query(); // Iniciar query
+        $texto = $request->input('texto');
+        $query = Producto::query(); // Iniciar query
 
+        // MODIFICACIÓN: Agrupar la búsqueda para mayor seguridad
         if ($texto) {
-            $query->where('nombre', 'like',"%{$texto}%")
-                  ->orWhere('codigo', 'like',"%{$texto}%");
+            $query->where(function($q) use ($texto) {
+                $q->where('nombre', 'like', "%{$texto}%")
+                  ->orWhere('codigo', 'like', "%{$texto}%");
+            });
         }
 
         $registros = $query->orderBy('id', 'desc')->paginate(10);
@@ -33,7 +36,6 @@ class ProductoController extends Controller
     {
         $this->authorize('producto-create');
         // Pasamos una variable 'registro' vacía para consistencia con el form
-        // con los valores por defecto
         $registro = new Producto([
             'aplica_iva' => true,
             'inner' => 1
@@ -52,26 +54,26 @@ class ProductoController extends Controller
             'precio' => 'required|numeric|min:0',
             'aplica_iva' => 'required|boolean',
             'descripcion' => 'nullable|string',
-            'especificaciones' => 'nullable|string', // <-- ¡NUEVA VALIDACIÓN!
+            'especificaciones' => 'nullable|string', 
             'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'inner' => 'required|integer|min:1',
         ]);
 
         $registro = new Producto();
-        $registro->codigo = $request->input('codigo'); // Usar $request->input para coincidir con tu estilo
+        $registro->codigo = $request->input('codigo');
         $registro->nombre = $request->input('nombre');
         $registro->precio = $request->input('precio');
-        $registro->aplica_iva = $request->input('aplica_iva'); // Se obtiene 0 o 1 del form
+        $registro->aplica_iva = $request->input('aplica_iva');
         $registro->descripcion = $request->input('descripcion');
-        $registro->especificaciones = $request->input('especificaciones'); // <-- ¡NUEVO CAMPO!
+        $registro->especificaciones = $request->input('especificaciones');
         $registro->inner = $request->input('inner');
 
         // Manejo de Imagen
         if ($request->hasFile('imagen')) {
             $image = $request->file('imagen');
             $sufijo = strtolower(Str::random(2));
-            $nombreImagen = $sufijo . '-' . time() . '.' . $image->getClientOriginalExtension(); // Nombre único
-            $image->move(public_path('uploads/productos'), $nombreImagen); // Usar public_path()
+            $nombreImagen = $sufijo . '-' . time() . '.' . $image->getClientOriginalExtension();
+            $image->move(public_path('uploads/productos'), $nombreImagen);
             $registro->imagen = $nombreImagen;
         }
 
@@ -105,7 +107,7 @@ class ProductoController extends Controller
             'precio' => 'required|numeric|min:0',
             'aplica_iva' => 'required|boolean',
             'descripcion' => 'nullable|string',
-            'especificaciones' => 'nullable|string', // <-- ¡NUEVA VALIDACIÓN!
+            'especificaciones' => 'nullable|string',
             'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'inner' => 'required|integer|min:1',
         ]);
@@ -116,10 +118,10 @@ class ProductoController extends Controller
         $registro->precio = $request->input('precio');
         $registro->aplica_iva = $request->input('aplica_iva');
         $registro->descripcion = $request->input('descripcion');
-        $registro->especificaciones = $request->input('especificaciones'); // <-- ¡NUEVO CAMPO!
+        $registro->especificaciones = $request->input('especificaciones');
         $registro->inner = $request->input('inner');
 
-        // Manejo de Imagen (con borrado de la antigua si se sube una nueva)
+        // Manejo de Imagen
         if ($request->hasFile('imagen')) {
             // Borrar imagen antigua si existe
             $old_image_path = public_path('uploads/productos/' . $registro->imagen);
