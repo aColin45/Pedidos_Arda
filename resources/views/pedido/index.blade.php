@@ -9,9 +9,7 @@
                         <h3 class="card-title">Pedidos</h3>
                     </div>
                     <div class="card-body">
-                        {{-- =============================================== --}}
-                        {{-- ||       INICIA FORMULARIO DE FILTROS        || --}}
-                        {{-- =============================================== --}}
+                        {{-- FORMULARIO DE FILTROS --}}
                         <div>
                             <form action="{{route('perfil.pedidos')}}" method="get" class="mb-3">
                                 <div class="row g-2 align-items-center">
@@ -32,7 +30,7 @@
                                         @php $currentYear = now()->year; @endphp
                                         <select name="year" class="form-select form-select-sm">
                                             <option value="">-- Todos los Años --</option>
-                                            @foreach(range($currentYear, $currentYear - 5) as $y) {{-- Últimos 6 años --}}
+                                            @foreach(range($currentYear, $currentYear - 5) as $y) 
                                                 <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>
                                                     {{ $y }}
                                                 </option>
@@ -40,13 +38,13 @@
                                         </select>
                                     </div>
 
-                                    {{-- Barra de Búsqueda (Texto) --}}
+                                    {{-- Barra de Búsqueda --}}
                                     <div class="col-md-5">
                                         <input name="texto" type="text" class="form-control form-control-sm"
                                             value="{{ $texto ?? '' }}" placeholder="Buscar por Usuario/Agente/Cliente">
                                     </div>
 
-                                    {{-- Botón Buscar/Filtrar --}}
+                                    {{-- Botón Buscar --}}
                                     <div class="col-md-2">
                                         <button type="submit" class="btn btn-secondary btn-sm w-100">
                                             <i class="fas fa-search me-1"></i> Filtrar / Buscar
@@ -55,25 +53,20 @@
                                 </div>
                             </form>
 
-                            {{-- Botón Exportar (Solo Admin) --}}
+                            {{-- Botón Exportar --}}
                             @role('admin')
                             <div class="text-end mb-3">
-                                {{-- Pasamos los filtros actuales a la ruta de exportación --}}
                                 <a href="{{ route('dashboard.exportar.pedidos', [
-                                        'month' => request('month'),
-                                        'year' => request('year'),
-                                        'texto' => $texto ?? ''
-                                    ]) }}"
+                                            'month' => request('month'),
+                                            'year' => request('year'),
+                                            'texto' => $texto ?? ''
+                                            ]) }}"
                                    class="btn btn-success btn-sm">
                                     <i class="fas fa-file-excel me-1"></i> Exportar Resultados a Excel
                                 </a>
                             </div>
                             @endrole
                         </div>
-                        {{-- =============================================== --}}
-                        {{-- ||       TERMINA FORMULARIO DE FILTROS       || --}}
-                        {{-- =============================================== --}}
-
 
                         @if(Session::has('mensaje'))
                         <div class="alert alert-info alert-dismissible fade show mt-2">
@@ -93,26 +86,24 @@
                                         <th>Agente Creador</th>
                                         <th style="width: 80px">Total</th>
                                         <th style="width: 80px">Estado</th>
+                                        {{-- COLUMNA NUEVA PARA GUÍAS --}}
+                                        <th style="width: 220px">Guía de Envío</th> 
                                         <th style="width: 100px">Flete Pagado</th>
                                         <th style="width: 80px">Detalles</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @if(count($registros)<=0)
-                                        @role('admin')
-                                            {{-- Admin ahora tiene 9 columnas --}}
-                                            <tr><td colspan="9">No hay registros que coincidan con la búsqueda/filtros.</td></tr>
-                                        @else
-                                            {{-- Agente ahora tiene 8 columnas (sin Opciones) --}}
-                                            <tr><td colspan="8">No hay registros que coincidan con la búsqueda/filtros.</td></tr>
-                                        @endrole
+                                        <tr><td colspan="10">No hay registros que coincidan.</td></tr> {{-- Ajustado colspan --}}
                                     @else
                                         @foreach($registros as $reg)
                                         <tr class="align-middle">
                                             <td> {{-- Celda Opciones --}}
                                                 @php
                                                 $esAgenteYPuedeCancelar = auth()->user()->hasRole('agente-ventas') && $reg->estado == 'pendiente';
-                                                $esAdminYPuedeActuar = auth()->user()->can('pedido-anulate') && in_array($reg->estado, ['pendiente', 'enviado']);
+                                                
+                                                $esAdminYPuedeActuar = auth()->user()->can('pedido-anulate') && 
+                                                    in_array($reg->estado, ['pendiente', 'parcialmente_surtido', 'enviado', 'enviado_completo']);
                                                 @endphp
 
                                                 @if( $esAgenteYPuedeCancelar || $esAdminYPuedeActuar )
@@ -138,25 +129,91 @@
                                                 @php
                                                 $colores = [
                                                     'pendiente' => 'bg-warning',
+                                                    'parcialmente_surtido' => 'bg-info text-dark',
                                                     'enviado' => 'bg-success',
+                                                    'enviado_completo' => 'bg-success',
                                                     'anulado' => 'bg-danger',
                                                     'cancelado' => 'bg-secondary',
                                                     'entregado' => 'bg-primary',
-                                                    'cotizacion' => 'bg-info', // Añadido por si acaso
+                                                    'cotizacion' => 'bg-dark',
                                                 ];
                                                 @endphp
                                                 <span class="badge {{ $colores[$reg->estado] ?? 'bg-dark' }}">
-                                                    {{ ucfirst($reg->estado) }}
+                                                    {{ ucfirst(str_replace('_', ' ', $reg->estado)) }}
                                                 </span>
                                             </td>
-                                            <td> {{-- Celda Flete Pagado --}}
+                                            
+                                            {{-- ============================================= --}}
+                                            {{-- ||     CELDA NUEVA: INPUTS DE GUÍAS        || --}}
+                                            {{-- ============================================= --}}
+                                            <td>
+                                                @php
+                                                    $estado = strtolower($reg->estado);
+                                                    // Determinar qué input mostrar según el estado (con guiones bajos)
+                                                    $showParcial = in_array($estado, ['parcialmente_surtido', 'enviado_completo', 'entregado', 'finalizado']);
+                                                    $showCompleta = in_array($estado, ['enviado_completo', 'entregado', 'finalizado']);
+                                                    // ¿Es admin? (Solo admin edita guías)
+                                                    $isAdmin = auth()->user()->hasRole('admin');
+                                                @endphp
+
+                                                @if($isAdmin)
+                                                    @if($showParcial)
+                                                        <div class="input-group input-group-sm mb-1">
+                                                            <span class="input-group-text bg-light" title="Guía Parcial">
+                                                                <i class="fas fa-shipping-fast text-secondary"></i>
+                                                            </span>
+                                                            <input type="text" class="form-control tracking-input"
+                                                                data-pedido-id="{{ $reg->id }}"
+                                                                data-tipo="guia_parcial"
+                                                                value="{{ $reg->guia_parcial }}" 
+                                                                placeholder="Guía Parcial...">
+                                                            <button class="btn btn-outline-secondary btn-save-tracking" type="button">
+                                                                <i class="fas fa-save"></i>
+                                                            </button>
+                                                        </div>
+                                                    @endif
+
+                                                    @if($showCompleta)
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text bg-light" title="Guía Completa">
+                                                                <i class="fas fa-truck text-success"></i>
+                                                            </span>
+                                                            <input type="text" class="form-control tracking-input"
+                                                                data-pedido-id="{{ $reg->id }}"
+                                                                data-tipo="guia_completa"
+                                                                value="{{ $reg->guia_completa }}"
+                                                                placeholder="Guía Completa...">
+                                                            <button class="btn btn-outline-success btn-save-tracking" type="button">
+                                                                <i class="fas fa-save"></i>
+                                                            </button>
+                                                        </div>
+                                                    @endif
+
+                                                    @if(!$showParcial && !$showCompleta)
+                                                        <small class="text-muted">No aplica</small>
+                                                    @endif
+                                                @else
+                                                    {{-- SI NO ES ADMIN, SOLO MUESTRA EL TEXTO --}}
+                                                    @if($reg->guia_parcial)
+                                                        <span class="badge bg-secondary d-block mb-1">Parcial: {{ $reg->guia_parcial }}</span>
+                                                    @endif
+                                                    @if($reg->guia_completa)
+                                                        <span class="badge bg-success d-block">Completa: {{ $reg->guia_completa }}</span>
+                                                    @endif
+                                                    @if(!$reg->guia_parcial && !$reg->guia_completa)
+                                                        <small class="text-muted">-</small>
+                                                    @endif
+                                                @endif
+                                            </td>
+
+                                            <td>
                                                 @if($reg->flete_pagado)
                                                 <span class="badge bg-success">Sí</span>
                                                 @else
                                                 <span class="badge bg-danger">No</span>
                                                 @endif
                                             </td>
-                                            <td> {{-- Celda Detalles --}}
+                                            <td>
                                                 <button class="btn btn-sm btn-primary" type="button"
                                                     data-bs-toggle="collapse" data-bs-target="#detalles-{{ $reg->id }}">
                                                     Ver detalles
@@ -164,15 +221,37 @@
                                             </td>
                                         </tr>
                                         <tr class="collapse" id="detalles-{{ $reg->id }}">
-                                             {{-- Colspan ajustado --}}
-                                            <td colspan="9">
-                                                <div class="p-2"> {{-- Añadir padding para que no se pegue al borde --}}
+                                            <td colspan="10"> {{-- Ajustado colspan --}}
+                                                <div class="p-2">
                                                     <h6 class="mb-2">Detalles del Pedido #{{ $reg->id }}</h6>
-                                                    {{-- Mostrar comentarios si existen --}}
-                                                    @if($reg->comentarios)
-                                                        <p class="mb-2 fst-italic"><strong>Comentarios:</strong> {{ $reg->comentarios }}</p>
+                                                    
+                                                    {{-- ============================================= --}}
+                                                    {{-- ||     INFORMACIÓN DE RASTREO (DETALLES)   || --}}
+                                                    {{-- ============================================= --}}
+                                                    @if($reg->guia_parcial || $reg->guia_completa)
+                                                        <div class="alert alert-light border mb-2 py-2">
+                                                            <h6 class="text-info fw-bold mb-2"><i class="fas fa-shipping-fast me-2"></i>Información de Envío:</h6>
+                                                            @if($reg->guia_parcial)
+                                                                <div class="mb-1">
+                                                                    <strong class="text-muted">Guía Parcial:</strong> 
+                                                                    <span class="font-monospace ms-2">{{ $reg->guia_parcial }}</span>
+                                                                </div>
+                                                            @endif
+                                                            @if($reg->guia_completa)
+                                                                <div>
+                                                                    <strong class="text-success">Guía Completa:</strong> 
+                                                                    <span class="font-monospace ms-2 fw-bold">{{ $reg->guia_completa }}</span>
+                                                                </div>
+                                                            @endif
+                                                        </div>
                                                     @endif
-                                                    <table class="table table-sm table-striped mb-0"> {{-- Quitar margen inferior --}}
+
+                                                    {{-- COMENTARIOS (Usando la versión limpia para no mostrar códigos) --}}
+                                                    @if($reg->comentarios_limpios)
+                                                        <p class="mb-2 fst-italic"><strong>Comentarios:</strong> {{ $reg->comentarios_limpios }}</p>
+                                                    @endif
+
+                                                    <table class="table table-sm table-striped mb-0">
                                                         <thead>
                                                             <tr>
                                                                 <th style="width: 30%">Producto</th>
@@ -190,9 +269,7 @@
                                                                 <td>
                                                                     @if($detalle->producto && $detalle->producto->imagen)
                                                                         <img src="{{ asset('uploads/productos/' . $detalle->producto->imagen ) }}"
-                                                                            class="img-fluid rounded"
-                                                                            style="width: 50px; height: 50px; object-fit: cover;" {{-- Tamaño reducido --}}
-                                                                            alt="{{ $detalle->producto->nombre}}">
+                                                                            class="img-fluid rounded" style="width: 50px; height: 50px; object-fit: cover;">
                                                                     @else
                                                                         <span class="text-muted">N/A</span>
                                                                     @endif
@@ -203,13 +280,12 @@
                                                                 <td>${{ number_format($detalle->subtotal ?? ($detalle->cantidad * $detalle->precio), 2) }}</td>
                                                             </tr>
                                                             @empty
-                                                            <tr><td colspan="6" class="text-center">No se encontraron detalles para este pedido.</td></tr>
+                                                            <tr><td colspan="6" class="text-center">No hay detalles.</td></tr>
                                                             @endforelse
-                                                            {{-- Fila Resumen Totales --}}
                                                             <tr>
                                                                 <td colspan="6" class="text-end pt-3">
                                                                     <small class="text-muted d-block">Subtotal Bruto: ${{ number_format($reg->subtotal ?? 0, 2) }}</small>
-                                                                    <strong class="text-danger d-block">Descuento ({{ number_format(($reg->descuento_aplicado / ($reg->subtotal ?: 1)) * 100, 2) ?? '0.00'}}%): -${{ number_format($reg->descuento_aplicado ?? 0, 2) }}</strong>
+                                                                    <strong class="text-danger d-block">Descuento: -${{ number_format($reg->descuento_aplicado ?? 0, 2) }}</strong>
                                                                     <small class="text-muted d-block">IVA (16%): +${{ number_format($reg->iva ?? 0, 2) }}</small>
                                                                     <strong class="d-block">TOTAL: ${{ number_format($reg->total, 2) }}</strong>
                                                                 </td>
@@ -219,16 +295,14 @@
                                                 </div>
                                             </td>
                                         </tr>
-                                        {{-- Incluir el modal de estado DENTRO del loop --}}
                                         @include('pedido.state')
                                         @endforeach
-                                    @endif {{-- Fin del @if(count...) / @else --}}
+                                    @endif
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     <div class="card-footer clearfix">
-                         {{-- Paginación incluye filtros --}}
                         {{$registros->appends(['texto' => $texto ?? '', 'month' => request('month'), 'year' => request('year')])->links()}}
                     </div>
                 </div>
@@ -236,4 +310,56 @@
         </div>
     </div>
 </div>
+
+{{-- ============================================= --}}
+{{-- ||             SCRIPT AJAX PARA GUÍAS      || --}}
+{{-- ============================================= --}}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Detectar clic en botón guardar
+        $('.btn-save-tracking').click(function() {
+            var btn = $(this);
+            var input = btn.prev('.tracking-input'); // El input hermano anterior
+            var pedidoId = input.data('pedido-id');
+            var tipoGuia = input.data('tipo');
+            var valorGuia = input.val();
+            var iconOriginal = btn.html();
+
+            // Deshabilitar botón y mostrar spinner
+            btn.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+
+            $.ajax({
+                url: '/pedidos/' + pedidoId + '/update-guia', // Ruta definida en web.php
+                method: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}', // Token de seguridad Laravel
+                    tipo: tipoGuia,
+                    valor: valorGuia
+                },
+                success: function(response) {
+                    if(response.success) {
+                        // Éxito: Mostrar palomita verde
+                        btn.html('<i class="fas fa-check"></i>')
+                           .removeClass('btn-outline-secondary btn-outline-success')
+                           .addClass('btn-success');
+                        
+                        // Volver a estado normal después de 2 segundos
+                        setTimeout(function(){
+                            var claseOriginal = (tipoGuia == 'guia_completa') ? 'btn-outline-success' : 'btn-outline-secondary';
+                            btn.html('<i class="fas fa-save"></i>')
+                               .prop('disabled', false)
+                               .removeClass('btn-success')
+                               .addClass(claseOriginal);
+                        }, 2000);
+                    }
+                },
+                error: function() {
+                    alert('Error al guardar. Intente nuevamente.');
+                    btn.html(iconOriginal).prop('disabled', false);
+                }
+            });
+        });
+    });
+</script>
 @endsection

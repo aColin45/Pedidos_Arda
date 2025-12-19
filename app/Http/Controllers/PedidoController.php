@@ -7,57 +7,43 @@ use App\Models\Pedido;
 use App\Models\PedidoDetalle;
 use App\Models\Cliente;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate; // Gate no se usa directamente aquí, pero lo dejamos por si acaso
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon; // Importar Carbon para fechas
+use Carbon\Carbon;
 
 class PedidoController extends Controller
 {
-    // IVA fijo al 16%
     const IVA_RATE = 0.16;
 
-    /**
-     * Muestra la lista de pedidos, filtrada por rol, texto, mes y año.
-     * Excluye las cotizaciones por defecto.
-     */
     public function index(Request $request){
         $user = auth()->user();
         $texto = $request->input('texto');
         $month = $request->input('month');
         $year = $request->input('year');
 
-        // Consulta base con relaciones cargadas
         $query = Pedido::with('agente', 'cliente', 'detalles.producto')
-                    // EXCLUIR COTIZACIONES POR DEFECTO
                     ->where('estado', '!=', 'cotizacion')
                     ->orderBy('id', 'desc');
 
-        // Filtrar por ROL
         if ($user->hasRole('admin')) {
-            // Admin ve todo (excepto cotizaciones) - No necesita filtro adicional
+            // Admin ve todo
         } elseif ($user->hasRole('agente-ventas')) {
-            // Agente ve solo los pedidos que ÉL creó (user_id)
             $query->where('user_id', $user->id);
         } else {
-            // Otro rol (ej. cliente) solo ve los suyos
-            // OJO: Si tienes clientes como Users, necesitarías otra lógica aquí,
-            // quizás basada en cliente_id si hay relación User<->Cliente
-            $query->where('user_id', $user->id); // Asumiendo que el User es el creador
+            $query->where('user_id', $user->id);
         }
 
-        // Filtrar por TEXTO (Agente o Cliente)
         if (!empty($texto)) {
             $query->where(function ($q) use ($texto) {
                 $q->whereHas('agente', function ($subQ) use ($texto) {
                     $subQ->where('name', 'like', "%{$texto}%");
                 })->orWhereHas('cliente', function ($subQ) use ($texto) {
                     $subQ->where('nombre', 'like', "%{$texto}%")
-                         ->orWhere('codigo', 'like', "%{$texto}%"); // Añadir búsqueda por código cliente
+                          ->orWhere('codigo', 'like', "%{$texto}%");
                 });
             });
         }
 
-        // Filtrar por FECHA (Mes y/o Año)
         if (!empty($month)) {
             $query->whereMonth('created_at', $month);
         }
@@ -65,27 +51,20 @@ class PedidoController extends Controller
             $query->whereYear('created_at', $year);
         }
 
-        // Obtener resultados paginados
         $registros = $query->paginate(10);
-
-        // Pasar datos a la vista
         return view('pedido.index', compact('registros', 'texto', 'month', 'year'));
     }
 
-    /**
-     * Calcula los montos finales aplicando descuento e IVA por producto.
-     * Esta función ahora reside aquí para ser usada al guardar el pedido.
-     */
     private function calculateFinalAmounts(array $carrito, float $descuentoCliente)
     {
         $subtotalBruto = 0;
-        $subtotalNetoGravable = 0; // Subtotal neto de productos CON IVA
-        $subtotalNetoExento = 0;   // Subtotal neto de productos SIN IVA
+        $subtotalNetoGravable = 0;
+        $subtotalNetoExento = 0;
 
         foreach ($carrito as $item) {
             $precio = $item['precio'] ?? 0;
             $cantidad = $item['cantidad'] ?? 0;
-            $aplicaIva = $item['aplica_iva'] ?? true; // Asumir true si falta
+            $aplicaIva = $item['aplica_iva'] ?? true;
 
             $subtotalLineaBruto = $precio * $cantidad;
             $subtotalBruto += $subtotalLineaBruto;
@@ -100,40 +79,28 @@ class PedidoController extends Controller
             }
         }
 
-        // Calcular Monto Descuento Total (Informativo, el descuento ya se aplicó por línea)
         $montoDescuentoTotal = $subtotalBruto * (floatval($descuentoCliente) / 100);
-
-        // Calcular IVA ÚNICAMENTE sobre el subtotal neto gravable
         $montoIVA = $subtotalNetoGravable * self::IVA_RATE;
-
-        // Calcular Total Final
         $totalFinal = $subtotalNetoGravable + $subtotalNetoExento + $montoIVA;
 
         return [
-            'subtotal' => $subtotalBruto,          // Subtotal antes de descuento e IVA
-            'monto_descuento' => $montoDescuentoTotal, // Descuento total aplicado
-            'monto_iva' => $montoIVA,              // IVA total calculado
-            'total_final' => $totalFinal,          // Total a pagar
-            // Podríamos devolver también los netos si los necesitáramos guardar
-            // 'subtotal_neto_gravable' => $subtotalNetoGravable,
-            // 'subtotal_neto_exento' => $subtotalNetoExento,
+            'subtotal' => $subtotalBruto,
+            'monto_descuento' => $montoDescuentoTotal,
+            'monto_iva' => $montoIVA,
+            'total_final' => $totalFinal,
         ];
     }
 
-    /**
-     * Guarda un nuevo pedido o cotización en la base de datos.
-     */
     public function realizar(Request $request){
         $carrito = session()->get('carrito', []);
         if (empty($carrito)) {
             return redirect()->back()->with('error', 'El carrito está vacío.');
         }
 
-        // Validación de datos del formulario
         $validatedData = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'comentarios' => 'nullable|string|max:1000',
-            'flete_pagado' => 'nullable|boolean', // Acepta 0 o 1 si se envía
+            'flete_pagado' => 'nullable|boolean',
         ], [
             'cliente_id.required' => 'Debe seleccionar un cliente para el pedido.'
         ]);
@@ -142,38 +109,30 @@ class PedidoController extends Controller
         $cliente = Cliente::findOrFail($clienteId);
         $user = Auth::user();
 
-        // Validación de Pertenencia (Admin puede para cualquiera, Agente solo los suyos o General)
         if (!$user->hasRole('admin') && $cliente->codigo !== 'GENERAL' && $cliente->user_id != $user->id) {
              return redirect()->back()->with('error', 'El cliente seleccionado no le pertenece.');
         }
 
-        // Obtener descuento y recalcular montos finales (con lógica de IVA por producto)
         $descuentoCliente = $cliente->descuento ?? 0.00;
-        // ¡Usar la función interna para calcular!
         $calculos = $this->calculateFinalAmounts($carrito, $descuentoCliente);
 
         DB::beginTransaction();
         try {
-            // Determinar si el flete está pagado (checkbox)
             $fletePagado = $request->has('flete_pagado');
-
-            // Determinar el estado inicial (pedido o cotización)
             $estadoInicial = ($cliente->codigo === 'GENERAL') ? 'cotizacion' : 'pendiente';
 
-            // Crear el registro del Pedido
             $pedido = Pedido::create([
                 'user_id' => $user->id,
                 'cliente_id' => $clienteId,
                 'total' => $calculos['total_final'],
-                'subtotal' => $calculos['subtotal'], // Guardamos subtotal bruto
-                'descuento_aplicado' => $calculos['monto_descuento'], // Guardamos descuento total
-                'iva' => $calculos['monto_iva'], // Guardamos IVA total
+                'subtotal' => $calculos['subtotal'],
+                'descuento_aplicado' => $calculos['monto_descuento'],
+                'iva' => $calculos['monto_iva'],
                 'estado' => $estadoInicial,
                 'comentarios' => $validatedData['comentarios'],
                 'flete_pagado' => $fletePagado
             ]);
 
-            // Crear los registros de PedidoDetalle
             foreach ($carrito as $productoId => $item) {
                  $precio = $item['precio'] ?? 0;
                  $cantidad = $item['cantidad'] ?? 0;
@@ -184,27 +143,22 @@ class PedidoController extends Controller
                      'cantidad' => $cantidad,
                      'precio' => $precio,
                      'inner' => $item['inner'] ?? 1,
-                     // Asegúrate de guardar aplica_iva aquí si tu tabla PedidoDetalle la tiene
                      'aplica_iva' => $item['aplica_iva'] ?? true,
                      'subtotal' => $subtotalLinea,
                  ]);
              }
 
-            // Limpiar sesión y confirmar transacción
             session()->forget(['carrito', 'current_client_id', 'current_client_name']);
             DB::commit();
 
-            // Mensaje de éxito
             $mensaje = ($estadoInicial === 'cotizacion')
-                       ? 'Cotización generada (registrada con estado Cotización).'
-                       : 'Pedido realizado correctamente para el cliente: ' . $cliente->nombre . '.';
+                        ? 'Cotización generada (registrada con estado Cotización).'
+                        : 'Pedido realizado correctamente para el cliente: ' . $cliente->nombre . '.';
 
             return redirect()->route('perfil.pedidos')->with('mensaje', $mensaje);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            // Log::error('Error al guardar pedido: '.$e->getMessage()); // Opcional: Loggear error
-            // dd($e); // Para depurar errores inesperados
             return redirect()->back()->with('error', 'Hubo un error al procesar el pedido/cotización. Intente de nuevo.');
         }
     }
@@ -214,55 +168,139 @@ class PedidoController extends Controller
      */
     public function cambiarEstado(Request $request, $id){
         $pedido = Pedido::findOrFail($id);
-        $estadoNuevo = $request->input('estado');
+        $estadoNuevo = $request->input('estado'); 
         $user = auth()->user();
 
-        // 1. Verificar si es Cotización (no se puede cambiar)
+        // 1. Verificar si es Cotización
         if ($pedido->estado === 'cotizacion') {
              abort(403, 'No se puede cambiar el estado de una cotización.');
         }
 
-        // 2. Estados Permitidos (incluye 'entregado')
-        $estadosPermitidos = ['enviado', 'anulado', 'cancelado', 'entregado'];
+        // 2. Estados Permitidos (INCLUYENDO LOS NUEVOS)
+        $estadosPermitidos = [
+            'parcialmente_surtido', 
+            'enviado_completo', 
+            'anulado', 
+            'cancelado', 
+            'entregado'
+        ];
+        
         if (!in_array($estadoNuevo, $estadosPermitidos)) {
-            abort(403, 'Estado no válido');
+            abort(403, 'Estado no válido: ' . $estadoNuevo);
         }
 
-        // 3. Validar Permisos y Transiciones
-        // Cancelar (Agente o Admin, solo desde Pendiente)
+        // ========================================================
+        // 3. LÓGICA DE TRANSICIONES (Reglas de Negocio)
+        // ========================================================
+
+        // A. CANCELAR (Solo si está pendiente)
         if ($estadoNuevo === 'cancelado') {
             if ($pedido->estado !== 'pendiente') {
-                 abort(403, 'Solo se pueden cancelar pedidos pendientes.');
+                 abort(403, 'Solo se pueden cancelar pedidos que estén Pendientes.');
             }
             if (!$user->can('pedido-cancel')) {
                  abort(403, 'No tiene permiso para cancelar pedidos');
             }
         }
-        // Enviar, Anular o Entregar (SOLO ADMIN con permiso 'pedido-anulate')
-        elseif (in_array($estadoNuevo, ['enviado', 'anulado', 'entregado'])) {
+
+        // B. PARCIALMENTE SURTIDO (Nuevo estado intermedio)
+        elseif ($estadoNuevo === 'parcialmente_surtido') {
+            if (!$user->can('pedido-anulate')) { 
+                 abort(403, 'No tiene permiso para gestionar almacén.');
+            }
+            // Solo puede venir de PENDIENTE
+            if ($pedido->estado !== 'pendiente') {
+                abort(403, 'Para marcar como parcialmente surtido, el pedido debe estar Pendiente.');
+            }
+        }
+
+        // C. ENVIADO COMPLETO (Sustituye a 'enviado')
+        elseif ($estadoNuevo === 'enviado_completo') {
             if (!$user->can('pedido-anulate')) {
                  abort(403, 'No tiene permiso para realizar esta acción.');
             }
-            // Validar transiciones específicas
-            if ($estadoNuevo === 'enviado' && $pedido->estado !== 'pendiente') {
-                 abort(403, 'Solo se pueden enviar pedidos pendientes.');
+            // Puede venir de PENDIENTE o de PARCIALMENTE SURTIDO
+            // (Nota: agregamos 'enviado' antiguo por compatibilidad si es necesario)
+            if (!in_array($pedido->estado, ['pendiente', 'parcialmente_surtido'])) {
+                 abort(403, 'Solo se pueden enviar pedidos pendientes o parcialmente surtidos.');
             }
-            if ($estadoNuevo === 'anulado' && $pedido->estado !== 'enviado') {
-                 abort(403, 'Solo se pueden anular pedidos enviados.');
+        }
+
+        // D. ANULADO
+        elseif ($estadoNuevo === 'anulado') {
+            if (!$user->can('pedido-anulate')) {
+                 abort(403, 'No tiene permiso para anular.');
             }
-            if ($estadoNuevo === 'entregado' && $pedido->estado !== 'enviado') {
+            // Aceptamos 'enviado' (legacy) o 'enviado_completo'
+            if (!in_array($pedido->estado, ['enviado', 'enviado_completo'])) {
+                 abort(403, 'Solo se pueden anular pedidos que ya han sido Enviados.');
+            }
+        }
+
+        // E. ENTREGADO
+        elseif ($estadoNuevo === 'entregado') {
+            if (!$user->can('pedido-anulate')) {
+                 abort(403, 'No tiene permiso para finalizar pedidos.');
+            }
+            // Solo se entregan los que ya se enviaron
+            if (!in_array($pedido->estado, ['enviado', 'enviado_completo'])) {
                  abort(403, 'Solo se pueden marcar como entregados los pedidos enviados.');
             }
         }
 
-        // Si todo es válido, cambiar estado
+        // Guardar cambios
         $pedido->estado = $estadoNuevo;
         $pedido->save();
 
-        return redirect()->back()->with('mensaje', 'El estado del pedido fue actualizado a "' . ucfirst($estadoNuevo) . '"');
+        $nombreEstado = ucwords(str_replace('_', ' ', $estadoNuevo));
+        return redirect()->back()->with('mensaje', 'El estado del pedido fue actualizado a: ' . $nombreEstado);
     }
 
-     /**
+    // =========================================================================
+    // NUEVA FUNCIÓN: ACTUALIZAR GUÍAS DE RASTREO (SIN TOCAR DB)
+    // =========================================================================
+    public function updateGuia(Request $request, $id)
+    {
+        try {
+            $pedido = Pedido::findOrFail($id);
+            
+            // Validamos qué estamos guardando y limpiamos espacios
+            $tipo = $request->input('tipo'); // 'guia_parcial' o 'guia_completa'
+            $valor = trim($request->input('valor')); 
+
+            // Obtenemos el comentario actual (o vacío si es null)
+            $comentarioActual = $pedido->comentarios ?? '';
+
+            if ($tipo === 'guia_parcial') {
+                // 1. Borramos cualquier guía parcial vieja usando Expresiones Regulares
+                $comentarioActual = preg_replace('/\|GP:(.*?)\|/', '', $comentarioActual);
+                
+                // 2. Si el usuario escribió algo, lo agregamos con el formato especial
+                if (!empty($valor)) {
+                    $comentarioActual .= " |GP:$valor|";
+                }
+            } elseif ($tipo === 'guia_completa') {
+                // 1. Borramos guía completa vieja
+                $comentarioActual = preg_replace('/\|GC:(.*?)\|/', '', $comentarioActual);
+                
+                // 2. Agregamos la nueva
+                if (!empty($valor)) {
+                    $comentarioActual .= " |GC:$valor|";
+                }
+            }
+
+            // Guardamos el resultado en la columna 'comentarios' real
+            $pedido->comentarios = trim($comentarioActual);
+            $pedido->save();
+
+            return response()->json(['success' => true, 'message' => 'Guía actualizada correctamente.']);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Elimina permanentemente un pedido (si se tiene la función y la ruta).
      * Nota: Se mantiene aquí por si se reactiva, pero existen posibles riesgos.
      */

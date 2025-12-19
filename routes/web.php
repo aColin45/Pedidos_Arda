@@ -36,6 +36,7 @@ Route::get('/carrito/restar', [CarritoController::class, 'restar'])->name('carri
 Route::get('/carrito/eliminar/{id}', [CarritoController::class, 'eliminar'])->name('carrito.eliminar');
 Route::get('/carrito/vaciar', [CarritoController::class, 'vaciar'])->name('carrito.vaciar');
 Route::get('/carrito/actualizar/{producto_id}/{cantidad}', [App\Http\Controllers\CarritoController::class, 'actualizar'])->name('carrito.actualizar');
+Route::get('/carrito/cotizacion/pdf', [App\Http\Controllers\CarritoController::class, 'generarPdfCotizacion'])->name('carrito.pdf');
 
 
 /*
@@ -72,6 +73,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/perfil/pedidos', [PedidoController::class, 'index'])->name('perfil.pedidos'); // Listado de pedidos
     // Route::patch('/pedidos/{id}/estado', [PedidoController::class, 'cambiarEstado'])->name('pedidos.cambiar.estado'); // Cambio de estado
     Route::put('pedidos/{id}/cambiar-estado', [PedidoController::class, 'cambiarEstado'])->name('pedido.cambiarEstado');
+    // Ruta para actualizar guías de envío sin tocar la BD (AJAX)
+    Route::post('/pedidos/{id}/update-guia', [App\Http\Controllers\PedidoController::class, 'updateGuia'])
+    ->name('pedidos.updateGuia');
     
     // RUTAS BASE
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');

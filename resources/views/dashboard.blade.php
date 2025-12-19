@@ -93,18 +93,6 @@
         </div>
         @endif
 
-        {{-- ============================================= --}}
-        {{-- ||       BOTÓN DE EXPORTAR (SOLO ADMIN)    || --}}
-        {{-- ============================================= --}}
-        <!-- @role('admin')
-        <div class="mb-3 text-end"> {{-- Alineado a la derecha --}}
-            <a href="{{ route('dashboard.exportar.pedidos') }}" class="btn btn-success">
-                <i class="fas fa-file-excel me-1"></i> Exportar Todos los Pedidos a Excel
-            </a>
-        </div>
-        @endrole -->
-
-
         {{-- ================================================================ --}}
         {{-- ||       TABLA DE ÚLTIMOS PEDIDOS (Común para ambos)          || --}}
         {{-- ================================================================ --}}
@@ -140,17 +128,36 @@
                                     <td>{{ $pedido->agente->name ?? 'N/A' }}</td>
                                     @endif
                                     <td>{{ $pedido->created_at->format('d/m/Y') }}</td>
+                                    
+                                    {{-- LÓGICA DE ESTADOS CORREGIDA --}}
                                     <td>
-                                        {{-- Código de los badges de estado --}}
-                                        @if($pedido->estado == 'pendiente') <span
-                                            class="badge bg-warning">Pendiente</span>
-                                        @elseif($pedido->estado == 'enviado') <span
-                                            class="badge bg-success">Enviado</span>
-                                        @elseif($pedido->estado == 'cancelado') <span
-                                            class="badge bg-secondary">Cancelado</span>
-                                        @else <span class="badge bg-danger">Anulado</span>
+                                        @php 
+                                            // Convertimos a minúsculas para evitar errores de escritura (Ej: Pendiente vs pendiente)
+                                            $estado = strtolower($pedido->estado); 
+                                        @endphp
+
+                                        @if($estado == 'pendiente') 
+                                            <span class="badge bg-warning">Pendiente</span>
+                                        
+                                        @elseif($estado == 'enviado') 
+                                            <span class="badge bg-info text-dark">Enviado</span>
+                                        
+                                        {{-- AQUÍ AGREGAMOS LOS ESTADOS DE ÉXITO --}}
+                                        @elseif($estado == 'completado' || $estado == 'entregado' || $estado == 'finalizado' || $estado == 'envio completado') 
+                                            <span class="badge bg-success">Completado</span>
+                                        
+                                        @elseif($estado == 'cancelado') 
+                                            <span class="badge bg-secondary">Cancelado</span>
+                                        
+                                        @elseif($estado == 'anulado') 
+                                            <span class="badge bg-danger">Anulado</span>
+                                        
+                                        @else 
+                                            {{-- Si el estado no coincide con ninguno, lo mostramos en negro para identificarlo --}}
+                                            <span class="badge bg-dark">{{ ucfirst($pedido->estado) }}</span>
                                         @endif
                                     </td>
+                                    
                                     <td>${{ number_format($pedido->total, 2) }}</td>
                                 </tr>
                                 @empty
