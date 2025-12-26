@@ -6,16 +6,14 @@ use Illuminate\Http\Request;
 use App\Models\Producto;
 use App\Models\Cliente;
 use Illuminate\Support\Facades\Auth;
-use PDF; 
-use Illuminate\Support\Str; // <--- IMPORTANTE: Necesario para limpiar el nombre del archivo
+use Illuminate\Support\Str;
+use Barryvdh\DomPDF\Facade\Pdf; // Usamos la ruta completa (Más seguro)
 
 class CarritoController extends Controller
 {
     const IVA_RATE = 0.16;
 
-    // --- FUNCIONES DEL CARRITO (Agregar, Sumar, Restar, Actualizar, Eliminar, Vaciar) ---
-    // Se mantienen idénticas a la lógica original.
-
+    // --- (Tus funciones agregar, sumar, restar, actualizar, eliminar, vaciar se mantienen igual) ---
     public function agregar(Request $request){
         $producto = Producto::findOrFail($request->producto_id);
         $inner = $producto->inner ?: 1;
@@ -49,7 +47,6 @@ class CarritoController extends Controller
         }
         return redirect()->back();
     }
-
     public function restar(Request $request){
         $id = $request->producto_id;
         $carrito = session()->get('carrito', []);
@@ -63,7 +60,6 @@ class CarritoController extends Controller
         }
         return redirect()->back();
     }
-
     public function actualizar($id, $cant){
         $carrito = session()->get('carrito', []);
         if (isset($carrito[$id])) {
@@ -72,14 +68,12 @@ class CarritoController extends Controller
         }
         return redirect()->back();
     }
-
     public function eliminar($id){
         $carrito = session()->get('carrito');
         unset($carrito[$id]);
         session()->put('carrito', $carrito);
         return redirect()->back();
     }
-
     public function vaciar(){
         session()->forget('carrito');
         session()->forget(['current_client_id', 'current_client_name']);
@@ -157,10 +151,22 @@ class CarritoController extends Controller
             return redirect()->back()->with('error', 'Cliente no encontrado.');
         }
 
-        // 2. Procesar Logo a Base64
+        // 2. Procesar Logo a Base64 (CORRECCIÓN LOGO: Intenta varias rutas)
         $logoBase64 = null;
         try {
-            $pathLogo = public_path('assets/img/logo.png');
+            // Intento 1: Ruta estándar de Laravel
+            $pathLogo = public_path('assets/img/LOGO.png');
+
+            // Intento 2: Si no existe, probar ruta común en hostings compartidos (public_html)
+            if (!file_exists($pathLogo)) {
+                $pathLogo = base_path('../public_html/assets/img/LOGO.png');
+            }
+            
+            // Intento 3: Si sigue sin existir, probar ruta relativa simple
+            if (!file_exists($pathLogo)) {
+                $pathLogo = 'assets/img/LOGO.png';
+            }
+
             if (file_exists($pathLogo)) {
                 $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
                 $data = file_get_contents($pathLogo);
@@ -168,7 +174,9 @@ class CarritoController extends Controller
                     $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
                 }
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            // Si falla, el PDF se genera sin logo en lugar de dar error
+        }
 
         // 3. Lógica de Descuento
         $descuentoAplicar = 0.0;
@@ -212,13 +220,13 @@ class CarritoController extends Controller
         $totalFinal = $subtotalNetoGravable + $subtotalNetoExento + $montoIva;
 
         // --- CAPTURAR COMENTARIOS ---
-        // Aquí tomamos lo que viene del formulario
         $comentarios = $request->input('comentarios_pdf'); 
 
         $data = [
             'carrito' => $carrito,
             'cliente' => $cliente,
-            'fecha' => now(),
+            // CORRECCIÓN FECHA: Forzamos la zona horaria de México
+            'fecha' => now()->setTimezone('America/Mexico_City'), 
             'descuento_porcentaje' => $descuentoAplicar,
             'subtotal_bruto' => $subtotalBruto,
             'monto_descuento' => $montoDescuentoTotal,
@@ -228,14 +236,14 @@ class CarritoController extends Controller
             'total_final' => $totalFinal,
             'usuario' => Auth::user(),
             'logoBase64' => $logoBase64,
-            'comentarios' => $comentarios // <-- Pasamos la variable a la vista
+            'comentarios' => $comentarios
         ];
 
-        // --- CORRECCIÓN AQUÍ: Usamos PDF:: (Alias Global en Mayúsculas) ---
-        $pdf = PDF::loadView('pdf.cotizacion', $data);
+        // Generación del PDF
+        $pdf = Pdf::loadView('pdf.cotizacion', $data);
         $pdf->setOptions(['dpi' => 150, 'defaultFont' => 'sans-serif', 'isRemoteEnabled' => true]);
         
         $nombreLimpio = Str::slug($cliente->nombre ?? 'Cliente', '-');
-        return $pdf->stream('Cotizacion-' . $nombreLimpio . '.pdf');
+        return $pdf->stream('Cotizacion-' . $nombreLimpio . '.pdf'); 
     }
 }
