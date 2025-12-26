@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Producto;
 use App\Models\Cliente;
 use Illuminate\Support\Facades\Auth;
-use Barryvdh\DomPDF\Facade\Pdf; 
+use PDF; 
 use Illuminate\Support\Str; // <--- IMPORTANTE: Necesario para limpiar el nombre del archivo
 
 class CarritoController extends Controller
@@ -231,10 +231,11 @@ class CarritoController extends Controller
             'comentarios' => $comentarios // <-- Pasamos la variable a la vista
         ];
 
-        $pdf = Pdf::loadView('pdf.cotizacion', $data);
+        // --- CORRECCIÓN AQUÍ: Usamos PDF:: (Alias Global en Mayúsculas) ---
+        $pdf = PDF::loadView('pdf.cotizacion', $data);
         $pdf->setOptions(['dpi' => 150, 'defaultFont' => 'sans-serif', 'isRemoteEnabled' => true]);
         
         $nombreLimpio = Str::slug($cliente->nombre ?? 'Cliente', '-');
-        return $pdf->stream('Cotizacion-' . $nombreLimpio . '.pdf'); 
+        return $pdf->stream('Cotizacion-' . $nombreLimpio . '.pdf');
     }
 }
