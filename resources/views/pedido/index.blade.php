@@ -222,25 +222,36 @@
                                         </tr>
                                         <tr class="collapse" id="detalles-{{ $reg->id }}">
                                             <td colspan="10"> {{-- Ajustado colspan --}}
-                                                <div class="p-2">
-                                                    <h6 class="mb-2">Detalles del Pedido #{{ $reg->id }}</h6>
+                                                <div class="p-3 bg-light border-bottom"> {{-- Ajuste visual padding/bg --}}
+                                                    
+                                                    {{-- =========================================== --}}
+                                                    {{-- || ENCABEZADO DETALLES CON BOTÓN PDF     || --}}
+                                                    {{-- =========================================== --}}
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-primary">Detalles del Pedido #{{ $reg->id }}</h6>
+                                                        
+                                                        {{-- BOTÓN PDF PEDIDO (Nuevo) --}}
+                                                        <a href="{{ route('pedidos.pdf', $reg->id) }}" target="_blank" class="btn btn-danger btn-sm shadow-sm">
+                                                            <i class="fas fa-file-pdf me-1"></i> Descargar PDF
+                                                        </a>
+                                                    </div>
                                                     
                                                     {{-- ============================================= --}}
                                                     {{-- ||     INFORMACIÓN DE RASTREO (DETALLES)   || --}}
                                                     {{-- ============================================= --}}
                                                     @if($reg->guia_parcial || $reg->guia_completa)
-                                                        <div class="alert alert-light border mb-2 py-2">
-                                                            <h6 class="text-info fw-bold mb-2"><i class="fas fa-shipping-fast me-2"></i>Información de Envío:</h6>
+                                                        <div class="alert alert-white border mb-3 py-2 shadow-sm">
+                                                            <h6 class="text-info fw-bold mb-2 small text-uppercase"><i class="fas fa-shipping-fast me-2"></i>Información de Envío:</h6>
                                                             @if($reg->guia_parcial)
                                                                 <div class="mb-1">
                                                                     <strong class="text-muted">Guía Parcial:</strong> 
-                                                                    <span class="font-monospace ms-2">{{ $reg->guia_parcial }}</span>
+                                                                    <span class="font-monospace ms-2 bg-light px-2 rounded">{{ $reg->guia_parcial }}</span>
                                                                 </div>
                                                             @endif
                                                             @if($reg->guia_completa)
                                                                 <div>
                                                                     <strong class="text-success">Guía Completa:</strong> 
-                                                                    <span class="font-monospace ms-2 fw-bold">{{ $reg->guia_completa }}</span>
+                                                                    <span class="font-monospace ms-2 fw-bold bg-success text-white px-2 rounded">{{ $reg->guia_completa }}</span>
                                                                 </div>
                                                             @endif
                                                         </div>
@@ -248,11 +259,13 @@
 
                                                     {{-- COMENTARIOS (Usando la versión limpia para no mostrar códigos) --}}
                                                     @if($reg->comentarios_limpios)
-                                                        <p class="mb-2 fst-italic"><strong>Comentarios:</strong> {{ $reg->comentarios_limpios }}</p>
+                                                        <div class="alert alert-warning py-2 mb-3 small">
+                                                            <i class="fas fa-comment-alt me-1"></i> <strong>Comentarios:</strong> {{ $reg->comentarios_limpios }}
+                                                        </div>
                                                     @endif
 
-                                                    <table class="table table-sm table-striped mb-0">
-                                                        <thead>
+                                                    <table class="table table-sm table-striped mb-0 bg-white shadow-sm">
+                                                        <thead class="table-light">
                                                             <tr>
                                                                 <th style="width: 30%">Producto</th>
                                                                 <th style="width: 10%">Imagen</th>
@@ -271,7 +284,7 @@
                                                                         <img src="{{ asset('uploads/productos/' . $detalle->producto->imagen ) }}"
                                                                             class="img-fluid rounded" style="width: 50px; height: 50px; object-fit: cover;">
                                                                     @else
-                                                                        <span class="text-muted">N/A</span>
+                                                                        <span class="text-muted small">Sin img</span>
                                                                     @endif
                                                                 </td>
                                                                 <td>{{ $detalle->cantidad}}</td>
@@ -283,11 +296,27 @@
                                                             <tr><td colspan="6" class="text-center">No hay detalles.</td></tr>
                                                             @endforelse
                                                             <tr>
-                                                                <td colspan="6" class="text-end pt-3">
-                                                                    <small class="text-muted d-block">Subtotal Bruto: ${{ number_format($reg->subtotal ?? 0, 2) }}</small>
-                                                                    <strong class="text-danger d-block">Descuento: -${{ number_format($reg->descuento_aplicado ?? 0, 2) }}</strong>
-                                                                    <small class="text-muted d-block">IVA (16%): +${{ number_format($reg->iva ?? 0, 2) }}</small>
-                                                                    <strong class="d-block">TOTAL: ${{ number_format($reg->total, 2) }}</strong>
+                                                                <td colspan="6" class="text-end pt-3 bg-white">
+                                                                    <div style="max-width: 250px; margin-left: auto;">
+                                                                        <div class="d-flex justify-content-between mb-1">
+                                                                            <span class="text-muted small">Subtotal:</span>
+                                                                            <span>${{ number_format($reg->subtotal ?? 0, 2) }}</span>
+                                                                        </div>
+                                                                        @if($reg->descuento_aplicado > 0)
+                                                                        <div class="d-flex justify-content-between mb-1 text-danger">
+                                                                            <span class="small">Descuento:</span>
+                                                                            <span>-${{ number_format($reg->descuento_aplicado ?? 0, 2) }}</span>
+                                                                        </div>
+                                                                        @endif
+                                                                        <div class="d-flex justify-content-between mb-1 text-muted">
+                                                                            <span class="small">IVA (16%):</span>
+                                                                            <span>+${{ number_format($reg->iva ?? 0, 2) }}</span>
+                                                                        </div>
+                                                                        <div class="d-flex justify-content-between border-top pt-2 mt-1">
+                                                                            <strong class="text-dark">TOTAL:</strong>
+                                                                            <strong class="fs-6">${{ number_format($reg->total, 2) }}</strong>
+                                                                        </div>
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                         </tbody>

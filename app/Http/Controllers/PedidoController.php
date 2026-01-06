@@ -300,6 +300,51 @@ class PedidoController extends Controller
         }
     }
 
+    // =========================================================================
+    // GENERAR PDF DE UN PEDIDO YA GUARDADO
+    // =========================================================================
+    public function generarPdfPedido($id)
+    {
+        $pedido = Pedido::with(['cliente', 'agente', 'detalles.producto'])->findOrFail($id);
+        $user = Auth::user();
+
+        // Seguridad: Verificar que el usuario pueda ver este pedido
+        // (Si es admin ve todo, si es agente solo sus pedidos o los de sus clientes)
+        if (!$user->hasRole('admin')) {
+             // Si el pedido no es del agente Y el cliente tampoco es del agente...
+             if ($pedido->user_id != $user->id && $pedido->cliente->user_id != $user->id) {
+                 abort(403, 'No tiene permiso para ver este pedido.');
+             }
+        }
+
+        // Procesar Logo (Misma lógica segura que usamos en Cotización)
+        $logoBase64 = null;
+        try {
+            $docRoot = rtrim($_SERVER['DOCUMENT_ROOT'], '/'); 
+            $pathLogo = $docRoot . '/assets/img/LOGO.png'; // Ruta servidor
+            if (!file_exists($pathLogo)) $pathLogo = public_path('assets/img/LOGO.png'); // Ruta local
+            
+            if (file_exists($pathLogo)) {
+                $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
+                $data = file_get_contents($pathLogo);
+                if ($data !== false) {
+                    $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                }
+            }
+        } catch (\Exception $e) {}
+
+        $data = [
+            'pedido' => $pedido,
+            'logoBase64' => $logoBase64,
+        ];
+
+        // Usamos una vista nueva 'pdf.pedido' (la crearemos abajo)
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.pedido', $data);
+        $pdf->setOptions(['dpi' => 150, 'defaultFont' => 'sans-serif', 'isRemoteEnabled' => true]);
+        
+        return $pdf->stream('Pedido-#' . $pedido->id . '.pdf');
+    }
+
     /**
      * Elimina permanentemente un pedido (si se tiene la función y la ruta).
      * Nota: Se mantiene aquí por si se reactiva, pero existen posibles riesgos.

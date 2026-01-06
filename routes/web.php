@@ -76,6 +76,7 @@ Route::middleware(['auth'])->group(function () {
     // Ruta para actualizar guías de envío sin tocar la BD (AJAX)
     Route::post('/pedidos/{id}/update-guia', [App\Http\Controllers\PedidoController::class, 'updateGuia'])
     ->name('pedidos.updateGuia');
+    Route::get('/pedidos/{id}/pdf', [App\Http\Controllers\PedidoController::class, 'generarPdfPedido'])->name('pedidos.pdf');
     
     // RUTAS BASE
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
