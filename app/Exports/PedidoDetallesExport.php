@@ -83,7 +83,7 @@ class PedidoDetallesExport implements FromQuery, WithHeadings, WithMapping, Shou
             'Cliente',
             'Código Cliente',
             'Agente Creador',
-            'Código Producto',
+            'Clave Producto',
             'Nombre Producto',
             'Cantidad',
             'Precio Unitario',
