@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\PedidoDetalle; // Asegúrate que el namespace del modelo sea correcto
+use App\Models\PedidoDetalle;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -17,7 +17,6 @@ class PedidoDetallesExport implements FromQuery, WithHeadings, WithMapping, Shou
 
     /**
      * Constructor para recibir los filtros desde el controlador.
-     * Pueden ser null si no se aplican.
      */
     public function __construct($month = null, $year = null, $texto = null)
     {
@@ -28,31 +27,25 @@ class PedidoDetallesExport implements FromQuery, WithHeadings, WithMapping, Shou
 
     /**
      * Define la consulta base para obtener los detalles de pedido.
-     * Aplica los filtros recibidos en el constructor.
      */
     public function query()
     {
-        // Inicia la consulta con las relaciones necesarias cargadas (eager loading)
         $query = PedidoDetalle::query()
             ->with([
-                'pedido.cliente', // Carga el cliente asociado al pedido
-                'pedido.agente',  // Carga el agente asociado al pedido
-                'producto'        // Carga el producto de este detalle
+                'pedido.cliente', 
+                'pedido.agente',  
+                'producto'        
             ]);
 
         // Aplica los filtros usando whereHas sobre la relación 'pedido'
         $query->whereHas('pedido', function ($q) {
-            // Filtrar por mes si se proporcionó
             if (!empty($this->month)) {
                 $q->whereMonth('created_at', $this->month);
             }
-            // Filtrar por año si se proporcionó
             if (!empty($this->year)) {
                 $q->whereYear('created_at', $this->year);
             }
-            // Filtrar por texto si se proporcionó (busca en nombre de agente o cliente)
             if (!empty($this->texto)) {
-                // Usamos una subconsulta para agrupar las condiciones OR
                 $q->where(function($subQuery) {
                      $subQuery->whereHas('agente', function ($agentQuery) {
                          $agentQuery->where('name', 'like', "%{$this->texto}%");
@@ -63,10 +56,8 @@ class PedidoDetallesExport implements FromQuery, WithHeadings, WithMapping, Shou
             }
         });
 
-        // Ordena los resultados por el ID del pedido (descendente)
         $query->orderBy('pedido_id', 'desc');
 
-        // Retorna la consulta construida
         return $query;
     }
 
@@ -75,51 +66,79 @@ class PedidoDetallesExport implements FromQuery, WithHeadings, WithMapping, Shou
      */
     public function headings(): array
     {
-        // Devuelve un array con los nombres de las columnas
         return [
-            'ID Pedido',
-            'Fecha Pedido',
+            'ID Alterno',       // ID Pedido
+            'Fecha Documento',     // Fecha Pedido
             'Estado Pedido',
-            'Cliente',
+            'Razón Social',            // Cliente
             'Código Cliente',
             'Agente Creador',
-            'Clave Producto',
-            'Nombre Producto',
-            'Cantidad',
-            'Precio Unitario',
+            'Precio Lista',      // El precio original
             'Inner',
-            'Subtotal Línea',
+            'Detalle - Cantidad',        // Cantidad
+            'Detalle - Clave',       // Clave Producto
+            'Nombre Producto',
+            'Detalle - Precio Unitario',   // El precio ya con descuento   (Precio Unitario)
             'Total Pedido',
+            'Detalle - Impuesto',     // IVA 16% o IVA 0%          (Tipo Impuesto)
             'Comentarios Pedido',
             'Flete Pagado', 
         ];
     }
 
     /**
-     * Mapea los datos de cada detalle de pedido al formato deseado para cada fila del Excel.
-     * @param PedidoDetalle $detalle La instancia del modelo PedidoDetalle.
+     * Mapea los datos de cada detalle de pedido al formato deseado.
      */
     public function map($detalle): array
     {
-        // Devuelve un array con los valores para cada columna, en el mismo orden que headings()
+        // --- 1. CÁLCULOS ---
+        
+        // Cálculo del porcentaje
+        $subtotalPedido = $detalle->pedido->subtotal ?? 0;
+        $descuentoMonto = $detalle->pedido->descuento_aplicado ?? 0;
+        $porcentajeDesc = 0;
+
+        if ($subtotalPedido > 0 && $descuentoMonto > 0) {
+            $porcentajeDesc = ($descuentoMonto / $subtotalPedido) * 100;
+        }
+        $porcentajeDesc = round($porcentajeDesc);
+
+        // Cálculo de precios
+        $precioLista = $detalle->precio; 
+        $precioUnitarioNeto = $precioLista - ($precioLista * ($porcentajeDesc / 100));
+
+        // Determinar Impuesto
+        $aplicaIva = true; 
+        if ($detalle->producto) {
+            $aplicaIva = $detalle->producto->aplica_iva;
+        } else {
+            $aplicaIva = $detalle->aplica_iva;
+        }
+        
+        // --- CAMBIO SOLICITADO: IVA 0% ---
+        $tipoImpuesto = $aplicaIva ? 'IVA 16%' : 'IVA 0%';
+
+
+        // --- 2. RETORNO DE DATOS ---
         return [
             $detalle->pedido->id ?? 'N/A',
-            // Formatear la fecha
             $detalle->pedido->created_at ? $detalle->pedido->created_at->format('d-m-Y') : 'N/A',
-            // Poner en mayúscula la primera letra del estado
             ucfirst($detalle->pedido->estado ?? 'N/A'),
             $detalle->pedido->cliente->nombre ?? 'N/A',
             $detalle->pedido->cliente->codigo ?? 'N/A',
             $detalle->pedido->agente->name ?? 'N/A',
-            $detalle->producto->codigo ?? 'N/A',
-            $detalle->producto->nombre ?? 'N/A',
-            $detalle->cantidad,
-            $detalle->precio,
-            $detalle->inner ?? 1, // Usar 1 si inner es null
-            $detalle->subtotal,
-            $detalle->pedido->total ?? 'N/A',
-            $detalle->pedido->comentarios ?? '', // Dejar vacío si no hay comentarios
-            // Convertir el valor booleano de flete_pagado a 'Sí' o 'No'
+            
+            $precioLista,           
+            $detalle->inner ?? 1,   
+            $detalle->cantidad,     
+            $detalle->producto->codigo ?? 'N/A', 
+            $detalle->producto->nombre ?? 'N/A', 
+            $precioUnitarioNeto,    
+            
+            $detalle->pedido->total ?? 'N/A', 
+            
+            $tipoImpuesto, // Aquí saldrá "IVA 16%" o "IVA 0%"
+            $detalle->pedido->comentarios ?? '',
             ($detalle->pedido->flete_pagado ?? false) ? 'Sí' : 'No',
         ];
     }

@@ -66,7 +66,7 @@
                                            min="{{ $item['inner'] ?? 1 }}" 
                                            step="{{ $item['inner'] ?? 1 }}"
                                            onchange="validarCantidad(this, '{{ $id }}', {{ $item['inner'] ?? 1 }})">
-                                           
+                                    
                                     <a href="{{ route('carrito.sumar', ['producto_id' => $id]) }}" class="btn btn-outline-secondary"> + </a>
                                 </div>
                             </div>
@@ -143,7 +143,6 @@
                                     class="form-select @error('cliente_id') is-invalid @enderror" required>
                                 <option value="">-- Seleccione un cliente --</option>
                                 @forelse($clientesParaSelector as $cliente)
-                                {{-- Importante: data-codigo para detectar si es GENERAL --}}
                                 <option value="{{ $cliente->id }}" 
                                         data-descuento="{{ $cliente->descuento }}"
                                         data-codigo="{{ $cliente->codigo }}" 
@@ -159,7 +158,7 @@
                             @enderror
                         </div>
 
-                        {{-- SELECTOR MANUAL DE DESCUENTO (OCULTO POR DEFECTO) --}}
+                        {{-- SELECTOR MANUAL DE DESCUENTO --}}
                         <div id="div-descuento-manual" class="mb-3" style="display: none; background-color: #f0f8ff; padding: 10px; border-radius: 5px; border: 1px solid #b6d4fe;">
                             <label for="descuento_manual" class="fw-bold text-primary mb-1">
                                 <i class="bi bi-percent"></i> Descuento Cotización:
@@ -299,10 +298,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const pdfClienteInput = document.getElementById('pdf_cliente_id');
     const pdfDescuentoInput = document.getElementById('pdf_descuento_manual');
     
-    // --- NUEVO: Referencias para Comentarios ---
+    // Referencias para Comentarios
     const comentariosTextarea = document.getElementById('comentarios'); 
     const pdfComentariosInput = document.getElementById('pdf_comentarios');
 
+    // --- FUNCIÓN DE ACTUALIZACIÓN VISUAL (JS) ---
     function actualizarTotales() {
         if (!selectCliente) return;
 
@@ -312,22 +312,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const codigoCliente = selectedOption.dataset.codigo; 
 
         if (codigoCliente === 'GENERAL') {
-            // Mostrar selector manual
             divDescuentoManual.style.display = 'block';
-            // Tomar valor del selector manual
             descuentoPct = parseFloat(selectDescuentoManual.value) || 0;
         } else {
-            // Ocultar selector manual
             divDescuentoManual.style.display = 'none';
-            // Tomar valor de base de datos
             descuentoPct = parseFloat(selectedOption.dataset.descuento) || 0;
         }
 
-        // --- ACTUALIZAR INPUTS OCULTOS PDF ---
+        // Sincronizar inputs ocultos
         if(pdfClienteInput) pdfClienteInput.value = selectCliente.value;
         if(pdfDescuentoInput) pdfDescuentoInput.value = descuentoPct; 
 
-        // --- CÁLCULOS ---
+        // Cálculos
         const resumenCard = document.getElementById('resumen-pedido-card');
         const subtotalBruto = parseFloat(resumenCard.dataset.subtotalBruto) || 0;
         const subtotalNetoGravableOrig = parseFloat(resumenCard.dataset.subtotalGravable) || 0;
@@ -340,7 +336,6 @@ document.addEventListener('DOMContentLoaded', function() {
         let gravableActual = 0;
         let exentoActual = 0;
         
-        // Mantener proporción gravable/exento
         if (subtotalNetoOrigTotal > 0.001) { 
             const prop = subtotalNetoGravableOrig / subtotalNetoOrigTotal;
             gravableActual = subtotalNetoActual * prop;
@@ -353,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const iva = gravableActual * ivaTasa;
         const total = gravableActual + exentoActual + iva;
 
-        // --- DOM ---
+        // Actualizar DOM
         const fmt = (n) => `$${n.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
         document.getElementById('resumen-descuento-texto').innerText = `Descuento (${descuentoPct.toFixed(0)}%)`;
@@ -365,24 +360,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (selectCliente) {
-        // Escuchar cambios
-        selectCliente.addEventListener('change', actualizarTotales);
+        // EVENTO CHANGE: Recargar página para actualizar precios del servidor
+        selectCliente.addEventListener('change', function() {
+            const clienteId = this.value;
+            if (clienteId) {
+                // Al recargar, enviamos el ID. El controlador (función 'mostrar')
+                // lo recibirá, actualizará la sesión y recalculará los precios.
+                window.location.href = "?cliente_id=" + clienteId;
+            }
+        });
+
+        // Para el descuento manual (solo visual, no requiere recarga de servidor)
         if (selectDescuentoManual) {
             selectDescuentoManual.addEventListener('change', actualizarTotales);
         }
 
-        // Ejecutar inmediatamente para llenar los hidden inputs
+        // Ejecutar visualización inicial
         actualizarTotales();
     }
 
-    // --- NUEVO: Sincronizar Comentarios ---
+    // Sincronizar Comentarios
     if (comentariosTextarea && pdfComentariosInput) {
-        // Copiar texto cada vez que el usuario escribe
         comentariosTextarea.addEventListener('input', function() {
             pdfComentariosInput.value = comentariosTextarea.value;
         });
-        
-        // Copiar texto inicial (por si el navegador recuerda el texto al recargar)
         pdfComentariosInput.value = comentariosTextarea.value;
     }
 });

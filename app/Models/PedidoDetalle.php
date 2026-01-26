@@ -12,7 +12,7 @@ class PedidoDetalle extends Model
     use HasFactory; 
 
     // AÑADIDOS: 'inner' y 'subtotal'
-    protected $fillable = ['pedido_id', 'producto_id', 'cantidad', 'precio', 'inner', 'subtotal'];
+    protected $fillable = ['pedido_id', 'producto_id', 'cantidad', 'precio', 'inner', 'subtotal', 'aplica_iva'];
 
     public function pedido()
     {

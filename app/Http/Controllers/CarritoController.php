@@ -7,28 +7,75 @@ use App\Models\Producto;
 use App\Models\Cliente;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
-use Barryvdh\DomPDF\Facade\Pdf; // Usamos la ruta completa (Más seguro)
+use Barryvdh\DomPDF\Facade\Pdf; 
 
 class CarritoController extends Controller
 {
     const IVA_RATE = 0.16;
 
-    // --- (Tus funciones agregar, sumar, restar, actualizar, eliminar, vaciar se mantienen igual) ---
+    // =========================================================================
+    //  FUNCIÓN PRIVADA PARA CALCULAR AUMENTOS REGIONALES
+    // =========================================================================
+    private function calcularPrecioBaseRegional(Producto $producto)
+    {
+        $precioBase = $producto->precio;
+
+        $clienteId = session('current_client_id');
+        if (!$clienteId) {
+            return $precioBase; 
+        }
+
+        $cliente = Cliente::find($clienteId);
+        if (!$cliente || empty($cliente->direccion)) {
+            return $precioBase;
+        }
+
+        // IDs: 1, 2, 3, 4, 5, 6 (Mangueras de Succión)
+        $productosConAumentoIds = [1, 2, 3, 4, 5, 6]; 
+
+        if (!in_array($producto->id, $productosConAumentoIds)) {
+            return $precioBase;
+        }
+
+        // REGLAS: Dirección (Mayúsculas) => Multiplicador
+        $reglasAumento = [
+            'MICHOACAN' => 1.10, // +10%
+            'GUERRERO'  => 1.14, // +14%
+            'MONTERREY' => 1.14, // +14%
+        ];
+
+        $estadoCliente = strtoupper(trim($cliente->direccion));
+
+        if (array_key_exists($estadoCliente, $reglasAumento)) {
+            $multiplicador = $reglasAumento[$estadoCliente];
+            return $precioBase * $multiplicador;
+        }
+
+        return $precioBase;
+    }
+
+    // =========================================================================
+    // AGREGAR
+    // =========================================================================
     public function agregar(Request $request){
         $producto = Producto::findOrFail($request->producto_id);
         $inner = $producto->inner ?: 1;
         $cantidad = $request->cantidad;
+        
         if ($cantidad < $inner) return redirect()->back()->withErrors(['cantidad' => 'La cantidad mínima es ' . $inner . '.']);
         if ($cantidad % $inner !== 0) return redirect()->back()->withErrors(['cantidad' => 'La cantidad debe ser un múltiplo de ' . $inner . '.']);
         
+        $precioAUsar = $this->calcularPrecioBaseRegional($producto);
+
         $carrito = session()->get('carrito', []);
+        
         if (isset($carrito[$producto->id])) {
             $carrito[$producto->id]['cantidad'] += $cantidad;
         } else {
             $carrito[$producto->id] = [
                 'codigo' => $producto->codigo,
                 'nombre' => $producto->nombre,
-                'precio' => $producto->precio,
+                'precio' => $precioAUsar, 
                 'aplica_iva' => $producto->aplica_iva,
                 'imagen' => $producto->imagen,
                 'cantidad' => $cantidad,
@@ -39,6 +86,7 @@ class CarritoController extends Controller
         return redirect()->back()->with('mensaje', 'Producto agregado');
     }
 
+    // ... (Sumar, Restar, Actualizar, Eliminar, Vaciar IGUALES) ...
     public function sumar(Request $request){
         $carrito = session()->get('carrito', []);
         if (isset($carrito[$request->producto_id])) {
@@ -80,8 +128,38 @@ class CarritoController extends Controller
         return redirect()->back();
     }
 
-    public function mostrar(){
+    // =========================================================================
+    // MOSTRAR (MODIFICADA PARA DETECTAR CAMBIO DE CLIENTE)
+    // =========================================================================
+    public function mostrar(Request $request){ // <-- AHORA RECIBE REQUEST
+        
+        // 1. SI VIENE UN CLIENTE EN LA URL, ACTUALIZAMOS LA SESIÓN PRIMERO
+        if ($request->has('cliente_id')) {
+            session(['current_client_id' => $request->cliente_id]);
+        }
+
         $carrito = session('carrito', []);
+        
+        // 2. RECALCULAR PRECIOS DEL CARRITO SEGÚN EL CLIENTE ACTUAL
+        if (!empty($carrito)) {
+            $huboCambios = false;
+            foreach ($carrito as $id => $item) {
+                $productoDB = Producto::find($id);
+                if ($productoDB) {
+                    $nuevoPrecio = $this->calcularPrecioBaseRegional($productoDB);
+                    
+                    // Si el precio cambio (por región), actualizamos el carrito
+                    if ($carrito[$id]['precio'] != $nuevoPrecio) {
+                        $carrito[$id]['precio'] = $nuevoPrecio;
+                        $huboCambios = true;
+                    }
+                }
+            }
+            if ($huboCambios) {
+                session()->put('carrito', $carrito);
+            }
+        }
+
         $clienteId = session('current_client_id');
         $descuentoCliente = 0;
         $agente = Auth::user();
@@ -127,7 +205,7 @@ class CarritoController extends Controller
     }
 
     // =========================================================================
-    // GENERAR PDF DE COTIZACIÓN
+    // GENERAR PDF DE COTIZACIÓN (SIN CAMBIOS)
     // =========================================================================
     public function generarPdfCotizacion(Request $request)
     {
@@ -136,7 +214,6 @@ class CarritoController extends Controller
             return redirect()->back()->with('error', 'El carrito está vacío.');
         }
 
-        // 1. Obtener Cliente
         $clienteId = $request->input('cliente_id');
         if (!$clienteId) {
             $clienteId = session('current_client_id');
@@ -151,18 +228,12 @@ class CarritoController extends Controller
             return redirect()->back()->with('error', 'Cliente no encontrado.');
         }
 
-        // 2. Procesar Logo a Base64 (CORRECCIÓN LOGO: Intenta varias rutas)
         $logoBase64 = null;
         try {
-            // Intento 1: Ruta estándar de Laravel
             $pathLogo = public_path('assets/img/LOGO.png');
-
-            // Intento 2: Si no existe, probar ruta común en hostings compartidos (public_html)
             if (!file_exists($pathLogo)) {
                 $pathLogo = base_path('../public_html/assets/img/LOGO.png');
             }
-            
-            // Intento 3: Si sigue sin existir, probar ruta relativa simple
             if (!file_exists($pathLogo)) {
                 $pathLogo = 'assets/img/LOGO.png';
             }
@@ -174,11 +245,8 @@ class CarritoController extends Controller
                     $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
                 }
             }
-        } catch (\Exception $e) {
-            // Si falla, el PDF se genera sin logo en lugar de dar error
-        }
+        } catch (\Exception $e) {}
 
-        // 3. Lógica de Descuento
         $descuentoAplicar = 0.0;
         
         if ($cliente->codigo === 'GENERAL') {
@@ -192,7 +260,6 @@ class CarritoController extends Controller
             $descuentoAplicar = floatval($cliente->descuento ?? 0);
         }
 
-        // 4. Cálculos Matemáticos
         $subtotalBruto = 0;
         $subtotalNetoGravable = 0;
         $subtotalNetoExento = 0;
@@ -219,13 +286,11 @@ class CarritoController extends Controller
         $montoIva = $subtotalNetoGravable * self::IVA_RATE;
         $totalFinal = $subtotalNetoGravable + $subtotalNetoExento + $montoIva;
 
-        // --- CAPTURAR COMENTARIOS ---
         $comentarios = $request->input('comentarios_pdf'); 
 
         $data = [
             'carrito' => $carrito,
             'cliente' => $cliente,
-            // CORRECCIÓN FECHA: Forzamos la zona horaria de México
             'fecha' => now()->setTimezone('America/Mexico_City'), 
             'descuento_porcentaje' => $descuentoAplicar,
             'subtotal_bruto' => $subtotalBruto,
@@ -239,7 +304,6 @@ class CarritoController extends Controller
             'comentarios' => $comentarios
         ];
 
-        // Generación del PDF
         $pdf = Pdf::loadView('pdf.cotizacion', $data);
         $pdf->setOptions(['dpi' => 150, 'defaultFont' => 'sans-serif', 'isRemoteEnabled' => true]);
         

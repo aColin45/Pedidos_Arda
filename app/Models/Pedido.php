@@ -12,11 +12,11 @@ class Pedido extends Model
 {
     use HasFactory; 
 
-    protected $fillable = ['user_id', 'cliente_id', 'total', 'estado', 'subtotal', 'descuento_aplicado', 'iva', 'comentarios', 'flete_pagado']; 
+    // QUITAMOS 'flete_pagado' de aquí para evitar errores si la columna no existe
+    protected $fillable = ['user_id', 'cliente_id', 'total', 'estado', 'subtotal', 'descuento_aplicado', 'iva', 'comentarios']; 
     
-    protected $casts = [
-        'flete_pagado' => 'boolean',
-    ];
+    // QUITAMOS el cast de flete_pagado porque ahora es virtual
+    protected $casts = [];
 
     public function detalles()
     {
@@ -34,12 +34,21 @@ class Pedido extends Model
     }
 
     // =========================================================
-    // ACCESORS (COLUMNAS VIRTUALES - LÓGICA DE GUÍAS)
+    // ACCESORS (COLUMNAS VIRTUALES - SIN TOCAR BASE DE DATOS)
     // =========================================================
 
     /**
-     * Obtiene la guía parcial buscando la etiqueta |GP:...| en comentarios.
-     * Uso: $pedido->guia_parcial
+     * FLETE PAGADO (Virtual)
+     * Busca la etiqueta |FP:1| en los comentarios.
+     */
+    public function getFletePagadoAttribute()
+    {
+        // Si encuentra |FP:1| devuelve true, si no, false.
+        return str_contains($this->comentarios ?? '', '|FP:1|');
+    }
+
+    /**
+     * Guía Parcial (Virtual)
      */
     public function getGuiaParcialAttribute()
     {
@@ -48,8 +57,7 @@ class Pedido extends Model
     }
 
     /**
-     * Obtiene la guía completa buscando la etiqueta |GC:...| en comentarios.
-     * Uso: $pedido->guia_completa
+     * Guía Completa (Virtual)
      */
     public function getGuiaCompletaAttribute()
     {
@@ -58,14 +66,14 @@ class Pedido extends Model
     }
 
     /**
-     * Devuelve los comentarios SIN los códigos de guía para mostrarlos limpios al usuario.
-     * Uso: $pedido->comentarios_limpios
+     * Comentarios Limpios (Para mostrar al usuario sin códigos)
      */
     public function getComentariosLimpiosAttribute()
     {
         $texto = $this->comentarios ?? '';
-        $texto = preg_replace('/\|GP:(.*?)\|/', '', $texto); // Quitar etiqueta GP
-        $texto = preg_replace('/\|GC:(.*?)\|/', '', $texto); // Quitar etiqueta GC
+        $texto = preg_replace('/\|GP:(.*?)\|/', '', $texto); // Quitar Guía P
+        $texto = preg_replace('/\|GC:(.*?)\|/', '', $texto); // Quitar Guía C
+        $texto = str_replace('|FP:1|', '', $texto);          // Quitar Flete
         return trim($texto);
     }
 }

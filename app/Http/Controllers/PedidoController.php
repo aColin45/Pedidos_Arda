@@ -91,6 +91,9 @@ class PedidoController extends Controller
         ];
     }
 
+    // =========================================================================
+    // FUNCIÓN REALIZAR PEDIDO (CORREGIDA PARA NO TOCAR DB)
+    // =========================================================================
     public function realizar(Request $request){
         $carrito = session()->get('carrito', []);
         if (empty($carrito)) {
@@ -100,7 +103,7 @@ class PedidoController extends Controller
         $validatedData = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'comentarios' => 'nullable|string|max:1000',
-            'flete_pagado' => 'nullable|boolean',
+            'flete_pagado' => 'nullable|boolean', // Solo validamos, no guardamos directo
         ], [
             'cliente_id.required' => 'Debe seleccionar un cliente para el pedido.'
         ]);
@@ -118,8 +121,13 @@ class PedidoController extends Controller
 
         DB::beginTransaction();
         try {
-            $fletePagado = $request->has('flete_pagado');
             $estadoInicial = ($cliente->codigo === 'GENERAL') ? 'cotizacion' : 'pendiente';
+            
+            // LÓGICA SEGURA: Si flete pagado es true, lo metemos al comentario
+            $comentariosFinales = $validatedData['comentarios'] ?? '';
+            if ($request->has('flete_pagado') && $request->flete_pagado == '1') {
+                $comentariosFinales .= " |FP:1|"; 
+            }
 
             $pedido = Pedido::create([
                 'user_id' => $user->id,
@@ -129,21 +137,22 @@ class PedidoController extends Controller
                 'descuento_aplicado' => $calculos['monto_descuento'],
                 'iva' => $calculos['monto_iva'],
                 'estado' => $estadoInicial,
-                'comentarios' => $validatedData['comentarios'],
-                'flete_pagado' => $fletePagado
+                'comentarios' => trim($comentariosFinales),
+                // 'flete_pagado' => Eliminado para evitar error SQL
             ]);
 
             foreach ($carrito as $productoId => $item) {
                  $precio = $item['precio'] ?? 0;
                  $cantidad = $item['cantidad'] ?? 0;
                  $subtotalLinea = $precio * $cantidad;
+                 
                  PedidoDetalle::create([
                      'pedido_id' => $pedido->id,
                      'producto_id' => $productoId,
                      'cantidad' => $cantidad,
                      'precio' => $precio,
                      'inner' => $item['inner'] ?? 1,
-                     'aplica_iva' => $item['aplica_iva'] ?? true,
+                     // 'aplica_iva' => Eliminado para evitar error SQL (se lee del producto)
                      'subtotal' => $subtotalLinea,
                  ]);
              }
@@ -159,24 +168,21 @@ class PedidoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            // Descomenta la siguiente línea si quieres ver el error exacto en pantalla para depurar
+            // dd($e->getMessage()); 
             return redirect()->back()->with('error', 'Hubo un error al procesar el pedido/cotización. Intente de nuevo.');
         }
     }
 
-    /**
-     * Cambia el estado de un pedido existente.
-     */
     public function cambiarEstado(Request $request, $id){
         $pedido = Pedido::findOrFail($id);
         $estadoNuevo = $request->input('estado'); 
         $user = auth()->user();
 
-        // 1. Verificar si es Cotización
         if ($pedido->estado === 'cotizacion') {
              abort(403, 'No se puede cambiar el estado de una cotización.');
         }
 
-        // 2. Estados Permitidos (INCLUYENDO LOS NUEVOS)
         $estadosPermitidos = [
             'parcialmente_surtido', 
             'enviado_completo', 
@@ -189,11 +195,7 @@ class PedidoController extends Controller
             abort(403, 'Estado no válido: ' . $estadoNuevo);
         }
 
-        // ========================================================
-        // 3. LÓGICA DE TRANSICIONES (Reglas de Negocio)
-        // ========================================================
-
-        // A. CANCELAR (Solo si está pendiente)
+        // LÓGICA DE TRANSICIONES
         if ($estadoNuevo === 'cancelado') {
             if ($pedido->estado !== 'pendiente') {
                  abort(403, 'Solo se pueden cancelar pedidos que estén Pendientes.');
@@ -202,53 +204,39 @@ class PedidoController extends Controller
                  abort(403, 'No tiene permiso para cancelar pedidos');
             }
         }
-
-        // B. PARCIALMENTE SURTIDO (Nuevo estado intermedio)
         elseif ($estadoNuevo === 'parcialmente_surtido') {
             if (!$user->can('pedido-anulate')) { 
                  abort(403, 'No tiene permiso para gestionar almacén.');
             }
-            // Solo puede venir de PENDIENTE
             if ($pedido->estado !== 'pendiente') {
                 abort(403, 'Para marcar como parcialmente surtido, el pedido debe estar Pendiente.');
             }
         }
-
-        // C. ENVIADO COMPLETO (Sustituye a 'enviado')
         elseif ($estadoNuevo === 'enviado_completo') {
             if (!$user->can('pedido-anulate')) {
                  abort(403, 'No tiene permiso para realizar esta acción.');
             }
-            // Puede venir de PENDIENTE o de PARCIALMENTE SURTIDO
-            // (Nota: agregamos 'enviado' antiguo por compatibilidad si es necesario)
             if (!in_array($pedido->estado, ['pendiente', 'parcialmente_surtido'])) {
                  abort(403, 'Solo se pueden enviar pedidos pendientes o parcialmente surtidos.');
             }
         }
-
-        // D. ANULADO
         elseif ($estadoNuevo === 'anulado') {
             if (!$user->can('pedido-anulate')) {
                  abort(403, 'No tiene permiso para anular.');
             }
-            // Aceptamos 'enviado' (legacy) o 'enviado_completo'
             if (!in_array($pedido->estado, ['enviado', 'enviado_completo'])) {
                  abort(403, 'Solo se pueden anular pedidos que ya han sido Enviados.');
             }
         }
-
-        // E. ENTREGADO
         elseif ($estadoNuevo === 'entregado') {
             if (!$user->can('pedido-anulate')) {
                  abort(403, 'No tiene permiso para finalizar pedidos.');
             }
-            // Solo se entregan los que ya se enviaron
             if (!in_array($pedido->estado, ['enviado', 'enviado_completo'])) {
                  abort(403, 'Solo se pueden marcar como entregados los pedidos enviados.');
             }
         }
 
-        // Guardar cambios
         $pedido->estado = $estadoNuevo;
         $pedido->save();
 
@@ -256,40 +244,27 @@ class PedidoController extends Controller
         return redirect()->back()->with('mensaje', 'El estado del pedido fue actualizado a: ' . $nombreEstado);
     }
 
-    // =========================================================================
-    // NUEVA FUNCIÓN: ACTUALIZAR GUÍAS DE RASTREO (SIN TOCAR DB)
-    // =========================================================================
     public function updateGuia(Request $request, $id)
     {
         try {
             $pedido = Pedido::findOrFail($id);
-            
-            // Validamos qué estamos guardando y limpiamos espacios
-            $tipo = $request->input('tipo'); // 'guia_parcial' o 'guia_completa'
+            $tipo = $request->input('tipo'); 
             $valor = trim($request->input('valor')); 
 
-            // Obtenemos el comentario actual (o vacío si es null)
             $comentarioActual = $pedido->comentarios ?? '';
 
             if ($tipo === 'guia_parcial') {
-                // 1. Borramos cualquier guía parcial vieja usando Expresiones Regulares
                 $comentarioActual = preg_replace('/\|GP:(.*?)\|/', '', $comentarioActual);
-                
-                // 2. Si el usuario escribió algo, lo agregamos con el formato especial
                 if (!empty($valor)) {
                     $comentarioActual .= " |GP:$valor|";
                 }
             } elseif ($tipo === 'guia_completa') {
-                // 1. Borramos guía completa vieja
                 $comentarioActual = preg_replace('/\|GC:(.*?)\|/', '', $comentarioActual);
-                
-                // 2. Agregamos la nueva
                 if (!empty($valor)) {
                     $comentarioActual .= " |GC:$valor|";
                 }
             }
 
-            // Guardamos el resultado en la columna 'comentarios' real
             $pedido->comentarios = trim($comentarioActual);
             $pedido->save();
 
@@ -300,29 +275,23 @@ class PedidoController extends Controller
         }
     }
 
-    // =========================================================================
     // GENERAR PDF DE UN PEDIDO YA GUARDADO
-    // =========================================================================
     public function generarPdfPedido($id)
     {
         $pedido = Pedido::with(['cliente', 'agente', 'detalles.producto'])->findOrFail($id);
         $user = Auth::user();
 
-        // Seguridad: Verificar que el usuario pueda ver este pedido
-        // (Si es admin ve todo, si es agente solo sus pedidos o los de sus clientes)
         if (!$user->hasRole('admin')) {
-             // Si el pedido no es del agente Y el cliente tampoco es del agente...
              if ($pedido->user_id != $user->id && $pedido->cliente->user_id != $user->id) {
                  abort(403, 'No tiene permiso para ver este pedido.');
              }
         }
 
-        // Procesar Logo (Misma lógica segura que usamos en Cotización)
         $logoBase64 = null;
         try {
             $docRoot = rtrim($_SERVER['DOCUMENT_ROOT'], '/'); 
-            $pathLogo = $docRoot . '/assets/img/LOGO.png'; // Ruta servidor
-            if (!file_exists($pathLogo)) $pathLogo = public_path('assets/img/LOGO.png'); // Ruta local
+            $pathLogo = $docRoot . '/assets/img/LOGO.png'; 
+            if (!file_exists($pathLogo)) $pathLogo = public_path('assets/img/LOGO.png');
             
             if (file_exists($pathLogo)) {
                 $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
@@ -338,7 +307,6 @@ class PedidoController extends Controller
             'logoBase64' => $logoBase64,
         ];
 
-        // Usamos una vista nueva 'pdf.pedido' (la crearemos abajo)
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.pedido', $data);
         $pdf->setOptions(['dpi' => 150, 'defaultFont' => 'sans-serif', 'isRemoteEnabled' => true]);
         
