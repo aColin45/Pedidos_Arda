@@ -17,6 +17,11 @@
                                 <div class="input-group-append">
                                     <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i>
                                         Buscar</button>
+
+                                    <a href="{{ route('clientes.exportar', ['texto' => $texto ?? '']) }}" class="btn btn-success" title="Exportar a Excel">
+                                        <i class="fas fa-file-excel"></i> Excel
+                                    </a>
+
                                     @can('cliente-create')
                                     <a href="{{ route('clientes.create') }}" class="btn btn-primary"> Nuevo</a>
                                     @endcan
@@ -71,9 +76,10 @@
                                 @forelse($clientes as $cliente)
                                 <tr>
                                     @role('admin')
-                                    {{-- Columna Opciones: Orden idéntico a Usuarios (Editar -> Eliminar -> Toggle) --}}
+                                    {{-- Columna Opciones: Editar -> Eliminar -> Toggle --}}
                                     <td style="width: 150px;">
-                                        <div class="d-inline-flex">
+                                        <div class="d-inline-flex align-items-center">
+                                            
                                             {{-- 1. Botón EDITAR (Azul/Info) --}}
                                             @can('cliente-edit')
                                             <a href="{{ route('clientes.edit', $cliente->id) }}"
@@ -82,23 +88,39 @@
                                             </a>
                                             @endcan
 
-                                            {{-- 2. Botón ELIMINAR (Rojo/Danger) --}}
+                                            {{-- 2. Botón ELIMINAR con SweetAlert2 --}}
                                             @can('cliente-delete')
-                                            <button class="btn btn-danger btn-sm me-1" data-bs-toggle="modal"
-                                                    data-bs-target="#modal-eliminar-{{ $cliente->id }}" title="Eliminar">
-                                                <i class="bi bi-trash-fill"></i>
-                                            </button>
+                                            <form action="{{ route('clientes.destroy', $cliente->id) }}" method="POST" class="d-inline form-confirmar"
+                                                  data-title="¿Eliminar Cliente?" 
+                                                  data-text="Se eliminará permanentemente a '{{ $cliente->nombre }}'. Esta acción no se puede deshacer." 
+                                                  data-icon="warning" 
+                                                  data-color="#dc3545" 
+                                                  data-btn-text="Sí, eliminar">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-danger btn-sm me-1" title="Eliminar">
+                                                    <i class="bi bi-trash-fill"></i>
+                                                </button>
+                                            </form>
                                             @endcan
 
-                                            {{-- 3. Botón TOGGLE (Amarillo/Verde) --}}
+                                            {{-- 3. Botón TOGGLE (Activar/Inhabilitar) con SweetAlert2 --}}
                                             @can('cliente-edit')
-                                            <button class="btn {{ $cliente->activo ? 'btn-warning' : 'btn-success' }} btn-sm"
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#modal-toggle-{{ $cliente->id }}" 
-                                                    title="{{ $cliente->activo ? 'Inhabilitar' : 'Activar' }}">
-                                                <i class="bi {{$cliente->activo ? 'bi-ban' : 'bi-check-circle'}}"></i>
-                                            </button>
+                                            <form action="{{ route('clientes.toggle', $cliente->id) }}" method="POST" class="d-inline form-confirmar"
+                                                  data-title="{{ $cliente->activo ? '¿Desactivar Cliente?' : '¿Activar Cliente?' }}" 
+                                                  data-text="{{ $cliente->activo ? 'El cliente ya no podrá realizar operaciones en el sistema.' : 'El cliente volverá a estar activo.' }}" 
+                                                  data-icon="question" 
+                                                  data-color="{{ $cliente->activo ? '#ffc107' : '#198754' }}" 
+                                                  data-btn-text="Sí, {{ $cliente->activo ? 'Desactivar' : 'Activar' }}">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="btn {{ $cliente->activo ? 'btn-warning' : 'btn-success' }} btn-sm"
+                                                        title="{{ $cliente->activo ? 'Desactivar' : 'Activar' }}">
+                                                    <i class="bi {{$cliente->activo ? 'bi-ban' : 'bi-check-circle'}}"></i>
+                                                </button>
+                                            </form>
                                             @endcan
+
                                         </div>
                                     </td>
                                     @endrole
@@ -119,17 +141,10 @@
                                         </span>
                                     </td>
                                 </tr>
-
-                                {{-- INCLUIR MODALES (Si el usuario es admin para la eliminación y toggle) --}}
-                                @role('admin')
-                                @include('cliente.delete', ['cliente' => $cliente])
-                                @include('cliente.activate', ['cliente' => $cliente])
-                                @endrole
-
                                 @empty
                                 <tr>
                                     {{-- Determinar el colspan basado en si se muestra la columna Opciones --}}
-                                    <td colspan="{{ auth()->user()->hasRole('admin') ? 8 : 7 }}">No hay clientes registrados que coincidan con la búsqueda.</td>
+                                    <td colspan="{{ auth()->user()->hasRole('admin') ? 8 : 7 }}" class="text-center py-4">No hay clientes registrados que coincidan con la búsqueda.</td>
                                 </tr>
                                 @endforelse
                             </tbody>

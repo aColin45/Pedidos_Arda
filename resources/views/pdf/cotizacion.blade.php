@@ -4,35 +4,37 @@
     <meta charset="UTF-8">
     <title>Cotización</title>
     <style>
-        /* CONFIGURACIÓN GENERAL */
-        body { font-family: sans-serif; font-size: 12px; color: #333; margin: 0; padding: 0; }
+        /* CONFIGURACIÓN GENERAL - Letra escalada a 14px */
+        body { font-family: sans-serif; font-size: 14px; color: #333; margin: 0; padding: 0; }
         
         /* ENCABEZADO */
         .header { width: 100%; border-bottom: 2px solid #0056b3; padding-bottom: 10px; margin-bottom: 20px; }
         .logo { max-width: 180px; height: auto; display: block; }
-        .company-info { text-align: right; font-size: 10px; line-height: 1.4; vertical-align: top; }
+        
+        /* INFO EMPRESA - Subió a 12px */
+        .company-info { text-align: right; font-size: 12px; line-height: 1.4; vertical-align: top; }
         
         /* INFO CLIENTE */
-        .client-info { background-color: #f4f4f4; padding: 10px; margin-bottom: 20px; border-radius: 4px; border: 1px solid #ddd; }
+        .client-info { background-color: #f4f4f4; padding: 12px; margin-bottom: 20px; border-radius: 4px; border: 1px solid #ddd; }
         
-        /* TABLA DE PRODUCTOS */
+        /* TABLA DE PRODUCTOS - Textos y celdas más amplias (13px) */
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th { background-color: #0056b3; color: white; padding: 8px; text-align: left; font-size: 11px; }
-        td { border-bottom: 1px solid #ddd; padding: 8px; font-size: 11px; }
+        th { background-color: #0056b3; color: white; padding: 10px 8px; text-align: left; font-size: 13px; }
+        td { border-bottom: 1px solid #ddd; padding: 10px 8px; font-size: 13px; }
         
         /* COMENTARIOS */
-        .comments-section { border: 1px solid #ddd; background-color: #fffde7; padding: 10px; margin-bottom: 20px; border-radius: 4px; font-size: 11px; }
+        .comments-section { border: 1px solid #ddd; background-color: #fffde7; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 13px; }
 
         /* UTILIDADES */
         .text-right { text-align: right; }
-        .badge { background: #eee; padding: 2px 4px; border-radius: 3px; font-size: 9px; color: #555; }
+        .badge { background: #eee; padding: 3px 6px; border-radius: 3px; font-size: 11px; color: #555; }
         
         /* SECCIÓN DE TOTALES */
-        .totals { width: 45%; float: right; margin-top: 0px; }
-        .totals table tr td { border: none; padding: 3px 5px; }
+        .totals { width: 50%; float: right; margin-top: 0px; }
+        .totals table tr td { border: none; padding: 4px 5px; }
         
-        /* PIE DE PÁGINA */
-        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #ddd; padding-top: 10px; }
+        /* PIE DE PÁGINA - Subió a 11px */
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 11px; color: #777; border-top: 1px solid #ddd; padding-top: 10px; }
         .clearfix { clear: both; }
     </style>
 </head>
@@ -47,7 +49,8 @@
                 @else
                     <h2 style="color: #0056b3; margin: 0;">GRUPO INDUSTRIAL ARDA</h2>
                 @endif
-                <span style="font-size: 14px; font-weight: bold; color: #555; display:block; margin-top:10px;">COTIZACIÓN</span>
+                {{-- CAMBIO DE TÍTULO - Subió a 18px --}}
+                <span style="font-size: 18px; font-weight: bold; color: #555; display:block; margin-top:12px;">COTIZACIÓN</span>
             </td>
             <td style="border:none; width: 50%;" class="company-info">
                 <strong>GRUPO INDUSTRIAL ARDA S.A. de C.V.</strong><br>
@@ -68,14 +71,20 @@
                     <strong>CLIENTE:</strong> {{ $cliente->nombre }}<br>
                     <strong>CÓDIGO:</strong> {{ $cliente->codigo }}<br>
                     @if($cliente->email) <strong>EMAIL:</strong> {{ $cliente->email }}<br> @endif
-                    @if($cliente->telefono) <strong>TEL:</strong> {{ $cliente->telefono }} @endif
+                    @if($cliente->telefono) <strong>TEL:</strong> {{ $cliente->telefono }}<br> @endif
+                    
+                    {{-- DIRECCIÓN DE ENTREGA --}}
+                    @if($pedido->direccion_entrega)
+                        <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ccc;">
+                            <strong style="color: #0056b3;">DIRECCIÓN DE ENTREGA:</strong><br>
+                            {{ $pedido->direccion_entrega }}
+                        </div>
+                    @endif
                 </td>
                 <td style="border:none; width: 40%; text-align: right; vertical-align: top;">
                     <strong>FECHA:</strong> {{ $fecha->format('d/m/Y') }}<br>
-                    {{-- CAMBIO DE HORA A FORMATO AM/PM --}}
-                    {{-- <strong>HORA:</strong> {{ $fecha->format('h:i A') }}<br> --}}
                     <strong>AGENTE:</strong> {{ $usuario->name ?? 'Ventas' }}<br>
-                    <strong>VIGENCIA:</strong> 5 días hábiles
+                    <strong>VIGENCIA:</strong> 6 días
                 </td>
             </tr>
         </table>
@@ -86,14 +95,20 @@
         <thead>
             <tr>
                 <th style="width: 15%">CÓDIGO</th>
-                <th style="width: 40%">DESCRIPCIÓN</th>
-                <th style="width: 15%" class="text-right">PRECIO UNITARIO</th>
-                <th style="width: 10%" class="text-right">CANTIDAD</th>
-                <th style="width: 20%" class="text-right">IMPORTE</th>
+                <th style="width: 35%">DESCRIPCIÓN</th>
+                <th style="width: 15%" class="text-right">PRECIO LISTA</th>
+                <th style="width: 15%" class="text-right">PRECIO C/ DESC.</th>
+                <th style="width: 5%" class="text-right">CANT</th>
+                <th style="width: 15%" class="text-right">IMPORTE</th>
             </tr>
         </thead>
         <tbody>
             @foreach($carrito as $item)
+            @php
+                $precio_unitario = $item['precio'];
+                $precio_desc = $precio_unitario - ($precio_unitario * ($descuento_porcentaje / 100));
+                $importe_linea = $precio_desc * $item['cantidad'];
+            @endphp
             <tr>
                 <td>{{ $item['codigo'] }}</td>
                 <td>
@@ -102,9 +117,10 @@
                         <br><span class="badge">*Exento IVA</span> 
                     @endif
                 </td>
-                <td class="text-right">${{ number_format($item['precio'], 2) }}</td>
+                <td class="text-right" style="text-decoration: line-through; color: #888;">${{ number_format($precio_unitario, 2) }}</td>
+                <td class="text-right" style="color: #28a745; font-weight: bold;">${{ number_format($precio_desc, 2) }}</td>
                 <td class="text-right">{{ $item['cantidad'] }}</td>
-                <td class="text-right">${{ number_format($item['precio'] * $item['cantidad'], 2) }}</td>
+                <td class="text-right">${{ number_format($importe_linea, 2) }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -140,16 +156,17 @@
                 <td class="text-right">${{ number_format($monto_iva, 2) }}</td>
             </tr>
             <tr>
-                <td class="text-right" style="font-size: 14px; border-top: 2px solid #333; padding-top: 5px;"><strong>TOTAL:</strong></td>
-                <td class="text-right" style="font-size: 14px; border-top: 2px solid #333; padding-top: 5px;"><strong>${{ number_format($total_final, 2) }}</strong></td>
+                {{-- Totales subieron a 18px --}}
+                <td class="text-right" style="font-size: 18px; border-top: 2px solid #333; padding-top: 5px;"><strong>TOTAL:</strong></td>
+                <td class="text-right" style="font-size: 18px; border-top: 2px solid #333; padding-top: 5px;"><strong>${{ number_format($total_final, 2) }}</strong></td>
             </tr>
         </table>
     </div>
 
     <div class="clearfix"></div>
 
-    {{-- 5. NOTAS AL PIE --}}
-    <div style="margin-top: 50px; font-size: 10px; color: #555;">
+    {{-- 5. NOTAS AL PIE - Subió a 12px --}}
+    <div style="margin-top: 50px; font-size: 12px; color: #555;">
         <p><strong>Términos y Condiciones:</strong></p>
         <ul style="padding-left: 20px;">
             <li>Precios en Moneda Nacional (MXN) sujetos a cambio sin previo aviso.</li>

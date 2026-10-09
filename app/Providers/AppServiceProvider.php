@@ -3,23 +3,17 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Pagination\Paginator;
+use Illuminate\Pagination\Paginator; // <--- 1. ¡ESTA LÍNEA ES OBLIGATORIA!
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
+    public function register()
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
+    public function boot()
     {
-        Paginator::useBootstrap();
+        Paginator::useBootstrap(); // <--- 2. ESTA LÍNEA TAMBIÉN
     }
 }

@@ -1,156 +1,114 @@
 /* ======================================= */
-/* 1. COLOR DEL SISTEMA (PANTONE 280 C: #142667) */
+/* 0. COLOR DEL SISTEMA (PANTONE 280 C: #142667) */
 /* ======================================= */
 
-/* Fondo azul oscuro para el sidebar */
-.app-sidebar,
-.app-sidebar .sidebar-wrapper {
-    background-color: #142667 !important;
+
+/* ======================================================= */
+/* 1. BRANDING Y COLORES GLOBALES (Escritorio y Móvil)     */
+/* ======================================================= */
+.app-sidebar, .app-sidebar .sidebar-wrapper, .brand-link { background-color: #142667 !important; }
+.app-sidebar .nav-link, .app-sidebar .nav-link p, .app-sidebar .brand-text, .app-sidebar .nav-icon { color: #ffffff !important; }
+.nav-sidebar .nav-link.active { background-color: #F2DA43 !important; }
+.nav-sidebar .nav-link.active p, .nav-sidebar .nav-link.active i { color: #142667 !important; }
+.brand-link { display: flex; align-items: center; }
+.arda-logo { max-height: 45px !important; width: auto !important; margin-left: 0.5rem; }
+.brand-text.arda-titulo { font-size: 1.2rem !important; font-weight: 600 !important; padding-left: 0.5rem; }
+
+/* ======================================================= */
+/* 2. ESTILOS DE LA TIENDA PÚBLICA (WEB)                   */
+/* ======================================================= */
+body.store-theme { background-color: #f4f6f9; }
+.navbar-store, .store-header, .store-footer { background-color: #142667 !important; background-image: none !important; color: #ffffff !important; }
+body.store-theme h2, body.store-theme h5 { color: #142667; font-weight: 600; }
+.store-footer .footer-link-arda { color: #F2DA43; font-weight: 600; }
+
+/* ------------------------------------------------------- */
+/* A) BOTÓN DEL CARRITO EN EL ENCABEZADO (Fondo Azul)      */
+/* ------------------------------------------------------- */
+.store-header .btn-outline-dark,
+.navbar-store .btn-outline-dark { 
+    color: #F2DA43 !important; 
+    border-color: #F2DA43 !important; 
+    font-weight: 600;
+}
+.store-header .btn-outline-dark:hover,
+.navbar-store .btn-outline-dark:hover { 
+    color: #142667 !important; 
+    background-color: #F2DA43 !important; 
 }
 
-/* Fondo azul del logo/brand */
-.brand-link {
-    background-color: #142667 !important;
-}
+/* ------------------------------------------------------- */
+/* B) BOTONES DE LAS TARJETAS DE PRODUCTO (Fondo Blanco)   */
+/* ------------------------------------------------------- */
 
-/* Texto e Íconos Blancos (Menú no activo y Título) */
-.app-sidebar .nav-link,
-.app-sidebar .nav-link p,
-.app-sidebar .brand-text,
-.app-sidebar .nav-icon {
-    color: #ffffff !important;
-}
-
-/* ----------------------------------------------------- */
-/* 2. ITEM ACTIVO (Amarillo de acento) */
-/* ----------------------------------------------------- */
-
-/* Fondo del ítem activo en amarillo */
-.nav-sidebar .nav-link.active {
-    background-color: #F2DA43 !important;
-}
-
-/* Texto e Ícono del ítem activo en azul oscuro (contraste) */
-.nav-sidebar .nav-link.active p,
-.nav-sidebar .nav-link.active i {
+/* Botón "Agregar" (Contorno Azul Corporativo) */
+.card .btn-outline-dark {
     color: #142667 !important;
+    border-color: #142667 !important;
+    font-weight: 600;
 }
-
-/* ----------------------------------------------------- */
-/* 3. TAMAÑO Y PROPORCIÓN DEL LOGO */
-/* ----------------------------------------------------- */
-
-/* Contenedor para alinear verticalmente */
-.brand-link {
-    display: flex;
-    align-items: center;
-}
-
-/* Ajuste del tamaño del logo (clase arda-logo) */
-.arda-logo {
-    max-height: 45px !important;
-    width: auto !important;
-    margin-left: 0.5rem;
-}
-
-/* Ajuste del tamaño del texto del título (proporcional al logo) */
-.brand-text.arda-titulo {
-    font-size: 1.2rem !important;
-    font-weight: 600 !important;
-    padding-left: 0.5rem;
-}
-
-/* ======================================= */
-/* 4. ESTILOS DE LA TIENDA PÚBLICA (WEB)   */
-/* ======================================= */
-
-/* Variables de color para la tienda */
-body.store-theme:root { /* Definir variables solo en el contexto de la tienda */
-    --color-primario-arda: #142667;  /* Tu azul corporativo */
-    --color-secundario-arda: #F2DA43; /* Tu amarillo corporativo */
-    --color-fondo-claro: #f4f6f9;   /* Un gris muy claro para el fondo */
-}
-
-/* Fondo general de la tienda */
-body.store-theme {
-    background-color: var(--color-fondo-claro, #f4f6f9); /* Añadir fallback */
-}
-
-/* Barra de Navegación (azul) */
-.navbar-store {
-    background-color: var(--color-primario-arda, #142667) !important;
-}
-
-/* Banner/Header (azul) */
-.store-header {
-    background-color: var(--color-primario-arda, #142667) !important;
-    background-image: none !important;
-}
-
-/* Botones principales tienda (amarillo) */
-body.store-theme .btn-primary { /* Alcance más específico */
-    background-color: var(--color-secundario-arda, #F2DA43);
-    border-color: var(--color-secundario-arda, #F2DA43);
-    color: var(--color-primario-arda, #142667) !important;
-    font-weight: bold;
-}
-body.store-theme .btn-primary:hover {
-    background-color: #e0c83e; /* Amarillo más oscuro */
-    border-color: #e0c83e;
-    color: var(--color-primario-arda, #142667);
-}
-
-/* Botón del carrito tienda (outline amarillo) */
-body.store-theme .btn-outline-dark {
-    color: var(--color-secundario-arda, #F2DA43);
-    border-color: var(--color-secundario-arda, #F2DA43);
-}
-body.store-theme .btn-outline-dark:hover {
-    color: var(--color-primario-arda, #142667);
-    background-color: var(--color-secundario-arda, #F2DA43);
-    border-color: var(--color-secundario-arda, #F2DA43);
-}
-
-/* Títulos tienda */
-body.store-theme h2,
-body.store-theme h5 { /* Alcance más específico */
-   color: var(--color-primario-arda, #142667);
-   font-weight: 600;
-}
-
-/* Footer tienda (azul) */
-.store-footer {
-    background-color: var(--color-primario-arda, #142667) !important;
-    background-image: none !important;
+.card .btn-outline-dark:hover {
     color: #ffffff !important;
+    background-color: #142667 !important;
 }
 
-/* Link ARDA footer tienda (amarillo) */
-/* (Asegúrate que tu link en web/partials/footer.blade.php tenga esta clase) */
-.store-footer .footer-link-arda {
-    color: var(--color-secundario-arda, #F2DA43);
-    font-weight: 600;
+/* Botón "Ver producto" (Fondo Amarillo, Hover Azul) */
+.card .btn-primary { 
+    background-color: #F2DA43 !important; 
+    border-color: #F2DA43 !important; 
+    color: #142667 !important; 
+    font-weight: 600; 
 }
-.store-footer .footer-link-arda:hover {
-    color: #f5e06a;
+.card .btn-primary:hover { 
+    background-color: #142667 !important; 
+    border-color: #142667 !important; 
+    color: #ffffff !important; 
 }
 
-/* ======================================= */
-/* 5. ESTILOS DEL FOOTER (ADMIN)           */
-/* ======================================= */
+/* ======================================================= */
+/* 3. ESTILOS DEL FOOTER (ADMIN)                           */
+/* ======================================================= */
+.main-footer .footer-link-arda { color: #142667; font-weight: 600; }
+.main-footer .footer-link-arda:hover { color: #0558c4; }
 
-/* Forzamos el color del texto principal del footer a ser claro si no hereda bien */
-/*.main-footer {
-    /* Puedes ajustar el color si el default de AdminLTE no es blanco */
-    /* color: #ffffff;
-}
-*/
+/* ======================================================= */
+/* 4. MODO SÚPER COMPACTO PARA MÓVILES (SMARTPHONES)       */
+/* Todo lo de aquí adentro SOLO afecta si la pantalla es < 992px */
+/* ======================================================= */
+@media (max-width: 991.98px) {
+    
+    /* A) Fix de Layout AdminLTE para que no aplaste en celular */
+    .app-wrapper { display: flex !important; flex-direction: column !important; }
+    .app-main { width: 100% !important; min-width: 100% !important; margin-left: 0 !important; }
+    .app-sidebar { position: fixed !important; left: -300px !important; z-index: 1050 !important; transition: left 0.3s ease !important; box-shadow: none !important; }
+    body.sidebar-open .app-sidebar { left: 0 !important; box-shadow: 0 0 20px rgba(0,0,0,0.5) !important; }
 
-/* El link de ARDA en el footer del admin */
-.main-footer .footer-link-arda {
-    color: #142667; 
-    font-weight: 600;
+    /* B) Tablas compactas */
+    .table-responsive .table { font-size: 0.70rem !important; }
+    .table-responsive .table th, .table-responsive .table td { padding: 0.3rem 0.2rem !important; vertical-align: middle !important; }
+    .table-responsive .table th { white-space: nowrap !important; font-size: 0.75rem !important; }
+    
+    /* C) Botones pequeños */
+    .table-responsive .table .btn { padding: 0.15rem 0.35rem !important; font-size: 0.70rem !important; line-height: 1 !important; border-radius: 0.2rem !important; }
+    .table-responsive .table .btn i { font-size: 0.65rem !important; }
+
+    /* D) Controles y Formulario */
+    .card-body { padding: 0.5rem !important; }
+    .app-content-header { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+    .form-control, .form-select { font-size: 0.8rem !important; padding: 0.3rem 0.5rem !important; margin-bottom: 0.4rem !important; }
+
+    /* E) Apilador de filtros */
+    .stack-movil { display: flex !important; flex-direction: column !important; width: 100% !important; gap: 0.2rem !important; }
+    .stack-movil > * { width: 100% !important; }
+
+    /* F) Capa oscura para el menú táctil (Segura, no rompe el Grid) */
+    body.sidebar-open::after {
+        content: '';
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1040;
+        pointer-events: auto;
+    }
 }
-.main-footer .footer-link-arda:hover {
-    color: #0558c4; 
-}
+/* FIN DEL BLOQUE MÓVIL */

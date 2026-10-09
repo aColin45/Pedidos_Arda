@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
-use App\Models\Entrada; // <-- Importar Entrada
-use App\Models\Cliente; // <-- Importar Cliente
-use App\Models\Pedido;  // <-- Importar Pedido
+use App\Models\Entrada; 
+use App\Models\Cliente; 
+use App\Models\Pedido;  
+use App\Models\EncuestaRespuesta; // <-- ¡NUEVO! Importar el modelo de la encuesta
 
 class User extends Authenticatable
 {
@@ -60,12 +61,38 @@ class User extends Authenticatable
         return $this->hasMany(Cliente::class);
     }
 
-    // <-- ¡NUEVA RELACIÓN!
     /**
      * Un Agente (User) tiene muchos Pedidos.
      */
     public function pedidos()
     {
         return $this->hasMany(Pedido::class);
+    }
+
+    // Relación: Un usuario puede tener acceso a muchos productos especiales
+    public function productosEspeciales()
+    {
+        return $this->belongsToMany(Producto::class, 'producto_user', 'user_id', 'producto_id')
+                    ->withPivot('precio_especial', 'inner_especial');
+    }
+
+    // =========================================================
+    // LÓGICA DE ENCUESTAS
+    // =========================================================
+    
+    /**
+     * Relación: Un usuario tiene una respuesta de encuesta.
+     */
+    public function encuestaRespuesta()
+    {
+        return $this->hasOne(EncuestaRespuesta::class);
+    }
+
+    /**
+     * Función rápida para saber si el usuario ya contestó la encuesta.
+     */
+    public function haContestadoEncuesta()
+    {
+        return $this->encuestaRespuesta()->exists();
     }
 }

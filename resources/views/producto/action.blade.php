@@ -96,6 +96,17 @@
                                     </div>
                                     @endif
                                 </div>
+
+                                <div class="col-md-4 mt-3">
+                                    <div class="form-check form-switch mt-4">
+                                        <input class="form-check-input" type="checkbox" name="es_especial" id="es_especial" value="1" 
+                                            @if(isset($registro) && $registro->es_especial == 1) checked @endif>
+                                        <label class="form-check-label fw-bold text-primary" for="es_especial">
+                                            <i class="fas fa-star text-warning"></i> ¿Es Producto Especial / Exclusivo?
+                                        </label>
+                                        <div class="form-text small text-muted">Si se marca, solo los agentes asignados a este producto podrán verlo.</div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="row">

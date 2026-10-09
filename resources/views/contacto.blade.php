@@ -2,67 +2,167 @@
 @extends(request()->routeIs('contacto.index.panel') ? 'plantilla.app' : 'web.app')
 
 @section('contenido')
-<div class="{{ request()->routeIs('contacto.index.panel') ? 'app-content' : '' }}"> {{-- Wrapper para el panel --}}
-    <div class="container py-5"> {{-- Contenedor principal --}}
+<div class="{{ request()->routeIs('contacto.index.panel') ? 'app-content' : '' }} bg-light" style="min-height: 80vh;">
+    <div class="container py-5">
         
-        <h2 class="mb-4 text-center">Información de Contacto</h2>
+        {{-- Encabezado de la sección --}}
+        <div class="text-center mb-5">
+            <h2 class="font-weight-bold text-dark mb-2">Directorio de Contacto</h2>
+            <p class="text-muted">Estamos aquí para ayudarte. Contáctanos directamente.</p>
+        </div>
 
-        <div class="row justify-content-center g-4"> {{-- Fila centrada con espacio entre tarjetas --}}
+        <div class="row justify-content-center g-4">
 
-            {{-- Tarjeta 1: Marisol Munguia --}}
-            <div class="col-md-5"> {{-- Ocupa casi la mitad en pantallas medianas y grandes --}}
-                <div class="card h-100 shadow-sm"> {{-- Tarjeta con sombra y altura completa --}}
-                    <div class="card-body text-center">
-                        <i class="fas fa-bullhorn fa-3x text-primary mb-3"></i> {{-- Icono Marketing --}}
-                        <h5 class="card-title">Marisol Munguia</h5>
-                        <p class="card-text text-muted">Marketing</p>
-                        <hr>
-                        <ul class="list-unstyled text-start"> {{-- Lista sin estilo, alineada a la izquierda --}}
-                            <li class="mb-2">
-                                <i class="fas fa-phone-alt fa-fw me-2 text-secondary"></i>
-                                (728) 282-4148 Ext. 110
-                            </li>
-                            <li>
-                                <i class="fas fa-envelope fa-fw me-2 text-secondary"></i>
-                                <a href="mailto:marisol.munguia@arda.com.mx" class="text-decoration-none">marisol.munguia@arda.com.mx</a>
-                            </li>
-                        </ul>
+            {{-- ======================================================== --}}
+            {{-- TARJETA 1: MARISOL MUNGUIA (MARKETING)                   --}}
+            {{-- ======================================================== --}}
+            <div class="col-md-6 col-lg-5">
+                <div class="card h-100 shadow-sm contact-card">
+                    <div class="card-body p-4 text-center">
+                        
+                        {{-- Icono Principal Centrado en Círculo --}}
+                        <div class="icon-wrapper bg-soft-primary mb-4">
+                            <i class="fas fa-bullhorn fa-2x text-primary-arda"></i>
+                        </div>
+                        
+                        <h4 class="font-weight-bold mb-1">Marisol Munguia</h4>
+                        <span class="badge bg-white text-secondary mb-4 px-3 py-2 border shadow-sm">Marketing y Ventas</span>
+                        
+                        {{-- Caja de Datos de Contacto --}}
+                        <div class="text-start bg-light rounded-3 p-3">
+                            <ul class="list-unstyled m-0">
+                                
+                                {{-- Teléfono --}}
+                                <li class="d-flex align-items-center mb-3">
+                                    <div class="contact-icon bg-white shadow-sm me-3">
+                                        <i class="fas fa-phone-alt text-secondary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="d-block text-muted" style="font-size: 0.7rem; text-transform: uppercase;">Teléfono Oficina</small>
+                                        <span class="text-dark fw-bold">(728) 282-4148 <span class="text-primary-arda">Ext. 110</span></span>
+                                    </div>
+                                </li>
+
+                                {{-- Correo --}}
+                                <li class="d-flex align-items-center">
+                                    <div class="contact-icon bg-white shadow-sm me-3">
+                                        <i class="fas fa-envelope text-secondary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="d-block text-muted" style="font-size: 0.7rem; text-transform: uppercase;">Correo Electrónico</small>
+                                        <a href="mailto:marisol.munguia@arda.com.mx" class="text-decoration-none text-primary-arda fw-bold" style="word-break: break-all;">marisol.munguia@arda.com.mx</a>
+                                    </div>
+                                </li>
+
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {{-- Tarjeta 2: Rocio Davila --}}
-            <div class="col-md-5">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body text-center">
-                         <i class="fas fa-file-invoice-dollar fa-3x text-success mb-3"></i> {{-- Icono Facturación/Almacén --}}
-                        <h5 class="card-title">Rocio Davila</h5>
-                        <p class="card-text text-muted">Facturación y Almacenes</p>
-                        <hr>
-                        <ul class="list-unstyled text-start">
-                            <li class="mb-2">
-                                <i class="fas fa-phone-alt fa-fw me-2 text-secondary"></i>
-                                (728) 282-4148 Ext. 116
-                            </li>
-                            <li class="mb-2">
-                                <i class="fas fa-mobile-alt fa-fw me-2 text-secondary"></i>
-                                (+52) 55 2980 8313 {{-- Corrección formato --}}
-                            </li>
-                            <li>
-                                <i class="fas fa-envelope fa-fw me-2 text-secondary"></i>
-                                <a href="mailto:rdavila@arda.com.mx" class="text-decoration-none">rdavila@arda.com.mx</a>
-                            </li>
-                        </ul>
+            {{-- ======================================================== --}}
+            {{-- TARJETA 2: ROCIO DAVILA (FACTURACIÓN Y ALMACÉN)          --}}
+            {{-- ======================================================== --}}
+            <div class="col-md-6 col-lg-5">
+                <div class="card h-100 shadow-sm contact-card">
+                    <div class="card-body p-4 text-center">
+                        
+                        {{-- Icono Principal Centrado en Círculo --}}
+                        <div class="icon-wrapper bg-soft-success mb-4">
+                            <i class="fas fa-file-invoice-dollar fa-2x text-success"></i>
+                        </div>
+                        
+                        <h4 class="font-weight-bold mb-1">Rocio Davila</h4>
+                        <span class="badge bg-white text-secondary mb-4 px-3 py-2 border shadow-sm">Facturación y Almacenes</span>
+                        
+                        {{-- Caja de Datos de Contacto --}}
+                        <div class="text-start bg-light rounded-3 p-3">
+                            <ul class="list-unstyled m-0">
+                                
+                                {{-- Teléfono --}}
+                                <li class="d-flex align-items-center mb-3">
+                                    <div class="contact-icon bg-white shadow-sm me-3">
+                                        <i class="fas fa-phone-alt text-secondary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="d-block text-muted" style="font-size: 0.7rem; text-transform: uppercase;">Teléfono Oficina</small>
+                                        <span class="text-dark fw-bold">(728) 282-4148 <span class="text-success">Ext. 116</span></span>
+                                    </div>
+                                </li>
+
+                                {{-- Celular --}}
+                                <li class="d-flex align-items-center mb-3">
+                                    <div class="contact-icon bg-white shadow-sm me-3">
+                                        <i class="fas fa-mobile-alt text-secondary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="d-block text-muted" style="font-size: 0.7rem; text-transform: uppercase;">Celular Directo</small>
+                                        <span class="text-dark fw-bold">+52 55 2980 8313</span>
+                                    </div>
+                                </li>
+
+                                {{-- Correo --}}
+                                <li class="d-flex align-items-center">
+                                    <div class="contact-icon bg-white shadow-sm me-3">
+                                        <i class="fas fa-envelope text-secondary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="d-block text-muted" style="font-size: 0.7rem; text-transform: uppercase;">Correo Electrónico</small>
+                                        <a href="mailto:rdavila@arda.com.mx" class="text-decoration-none text-success fw-bold" style="word-break: break-all;">rdavila@arda.com.mx</a>
+                                    </div>
+                                </li>
+
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
 
         </div> {{-- Fin .row --}}
     </div> {{-- Fin .container --}}
-</div> {{-- Fin wrapper panel (si aplica) --}}
+</div> {{-- Fin wrapper --}}
 @endsection
 
 @push('estilos')
-{{-- Si Font Awesome no está cargado globalmente, puedes añadirlo aquí --}}
-{{-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> --}}
+<style>
+    /* Efecto de elevación elegante para las tarjetas */
+    .contact-card {
+        border: none;
+        border-radius: 16px;
+        transition: all 0.3s ease;
+    }
+    .contact-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Círculo grande para centrar el icono principal */
+    .icon-wrapper {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    /* Círculo pequeño para los iconos de la lista de datos */
+    .contact-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0; /* Evita que el icono se deforme si el texto es largo */
+    }
+
+    /* Colores translúcidos suaves de fondo para los iconos */
+    .bg-soft-primary { background-color: rgba(20, 38, 103, 0.08); }
+    .bg-soft-success { background-color: rgba(25, 135, 84, 0.1); }
+    
+    /* Color Corporativo ARDA */
+    .text-primary-arda { color: #142667 !important; }
+</style>
 @endpush

@@ -15,41 +15,90 @@
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('assets/img/favicons/favicon-32x32.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('assets/img/favicons/favicon-16x16.png') }}">
     <link rel="manifest" href="{{ asset('assets/img/favicons/site.webmanifest') }}">
-    {{-- <link rel="mask-icon" href="{{ asset('assets/img/favicons/safari-pinned-tab.svg') }}" color="#5bbad5"> --}}
     <link rel="shortcut icon" href="{{ asset('assets/img/favicons/favicon.ico') }}">
-    <meta name="msapplication-TileColor" content="#ffffff"> {{-- Cambio de color --}}
-    {{-- <meta name="msapplication-config" content="{{ asset('assets/img/favicons/browserconfig.xml') }}"> --}}
-    <meta name="theme-color" content="#ffffff"> {{-- Cambio de color --}}
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="theme-color" content="#ffffff">
     {{-- =============================================== --}}
     <title>@yield('titulo', 'ARDA - Grupo Industrial')</title>
-    <!-- Favicon-->
-    <!-- <link rel="icon" type="image/x-icon" href="assets/favicon.ico" /> -->
-    <!-- Bootstrap icons-->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" ...>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet" />
-    <!-- Core theme CSS (includes Bootstrap)-->
+    
     <link href="{{asset('css/styles.css')}}" rel="stylesheet" />
     <link href="{{asset('css/custom.css')}}" rel="stylesheet" />
+    
+    {{-- =============================================== --}}
+    {{-- INYECCIÓN SWEETALERT2 (CSS)                     --}}
+    {{-- =============================================== --}}
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.min.css" rel="stylesheet">
+    
     @stack('estilos')
 </head>
 
 <body class="store-theme d-flex flex-column min-vh-100">
-    <!-- Navigation-->
     @include('web.partials.nav')
-    <!-- Header-->
+    
     @if(View::hasSection('header'))
     @include('web.partials.header')
     @endif
-    <!-- Search and Filter Section -->
+    
     <main class="flex-grow-1">
         @yield('contenido')
     </main>
-    <!-- Footer-->
+    
     @include('web.partials.footer')
-    <!-- Bootstrap core JS-->
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Core theme JS-->
     <script src="{{asset('js/scripts.js')}}"></script>
+
+    {{-- =============================================== --}}
+    {{-- INYECCIÓN SWEETALERT2 (LÓGICA GLOBAL)           --}}
+    {{-- =============================================== --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.all.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Detectar cualquier formulario que tenga la clase 'form-confirmar'
+            const formsConfirmar = document.querySelectorAll('.form-confirmar');
+            
+            formsConfirmar.forEach(form => {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault(); // Detenemos el envío nativo/automático
+                    
+                    // Leemos la configuración que le pasemos a cada botón
+                    const titulo = this.getAttribute('data-title') || '¿Estás seguro?';
+                    const texto = this.getAttribute('data-text') || 'Esta acción no se puede deshacer.';
+                    const icono = this.getAttribute('data-icon') || 'warning';
+                    const colorBoton = this.getAttribute('data-color') || '#d33';
+                    const textoBoton = this.getAttribute('data-btn-text') || 'Sí, confirmar';
+
+                    Swal.fire({
+                        title: titulo,
+                        text: texto,
+                        icon: icono,
+                        showCancelButton: true,
+                        confirmButtonColor: colorBoton,
+                        cancelButtonColor: '#858796',
+                        confirmButtonText: textoBoton,
+                        cancelButtonText: 'Cancelar',
+                        backdrop: `rgba(0,0,0,0.5)` // Fondo elegante semi-transparente
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Pantalla de carga mientras procesa
+                            Swal.fire({
+                                title: 'Procesando...',
+                                text: 'Por favor espera un momento.',
+                                allowOutsideClick: false,
+                                didOpen: () => {
+                                    Swal.showLoading()
+                                }
+                            });
+                            this.submit(); // Enviamos el formulario
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+
     @stack('scripts')
 </body>
 

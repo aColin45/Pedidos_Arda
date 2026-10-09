@@ -13,7 +13,7 @@ class Pedido extends Model
     use HasFactory; 
 
     // QUITAMOS 'flete_pagado' de aquí para evitar errores si la columna no existe
-    protected $fillable = ['user_id', 'cliente_id', 'total', 'estado', 'subtotal', 'descuento_aplicado', 'iva', 'comentarios']; 
+    protected $fillable = ['user_id', 'cliente_id', 'total', 'estado', 'subtotal', 'descuento_aplicado', 'iva', 'comentarios', 'is_cotizacion', 'fecha_vencimiento', 'motivo_rechazo', 'validador_id', 'fecha_validacion', 'direccion_entrega']; 
     
     // QUITAMOS el cast de flete_pagado porque ahora es virtual
     protected $casts = [];
@@ -75,5 +75,15 @@ class Pedido extends Model
         $texto = preg_replace('/\|GC:(.*?)\|/', '', $texto); // Quitar Guía C
         $texto = str_replace('|FP:1|', '', $texto);          // Quitar Flete
         return trim($texto);
+    }
+
+    public function validador()
+    {
+        return $this->belongsTo(User::class, 'validador_id');
+    }
+
+    public function historial()
+    {
+        return $this->hasMany(HistorialPedido::class, 'pedido_id')->orderBy('created_at', 'desc');
     }
 }

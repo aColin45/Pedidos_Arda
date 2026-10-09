@@ -9,9 +9,35 @@ use App\Models\User;    // Necesario para verificar roles
 
 class WebController extends Controller
 {
-    // Método existente para la vista principal de la tienda
     public function index(Request $request){
         $query = Producto::query();
+
+        // =========================================================
+        // LÓGICA DE PRODUCTOS ESPECIALES / EXCLUSIVOS
+        // =========================================================
+        if (auth()->check() && !auth()->user()->hasRole('admin')) {
+            $agenteId = auth()->id();
+            
+            // Si es agente, ve los normales (0) + los especiales que le asignaron
+            $query->where(function($q) use ($agenteId) {
+                $q->where('es_especial', 0)
+                  ->orWhereHas('usuariosPermitidos', function($subQ) use ($agenteId) {
+                      $subQ->where('user_id', $agenteId);
+                  });
+            });
+        }
+        elseif (!auth()->check()) {
+            // Si no está logueado, solo ve los normales
+            $query->where('es_especial', 0);
+        }
+        // Si es admin, no entra en ningún if y ve todos (es_especial 0 y 1)
+
+        // =========================================================
+        // FILTRO RÁPIDO DE "SOLO MIS EXCLUSIVOS"
+        // =========================================================
+        if ($request->input('solo_exclusivos') == '1') {
+            $query->where('es_especial', 1);
+        }
 
         // ==========================================
         //  MODIFICACIÓN DE BÚSQUEDA (Nombre O Código)
@@ -19,7 +45,6 @@ class WebController extends Controller
         if ($request->has('search') && $request->search) {
             $busqueda = $request->search;
             // Usamos una función anónima (closure) para agrupar el OR
-            // Esto asegura que la lógica sea: (Nombre LIKE ... OR Codigo LIKE ...)
             $query->where(function($q) use ($busqueda) {
                 $q->where('nombre', 'like', '%' . $busqueda . '%')
                   ->orWhere('codigo', 'like', '%' . $busqueda . '%');
@@ -43,15 +68,37 @@ class WebController extends Controller
         
         // Obtener productos filtrados
         $productos = $query->paginate(10);     
-        return view('web.index', compact('productos'));
+
+        // --- NUEVO: EXTRAER PRECIOS E INNERS ESPECIALES DEL USUARIO LOGUEADO ---
+        $preciosEspeciales = [];
+        $innersEspeciales = [];
+        if (auth()->check()) {
+            $pivotData = auth()->user()->productosEspeciales()->get();
+            foreach($pivotData as $p) {
+                if($p->pivot->precio_especial !== null) $preciosEspeciales[$p->id] = $p->pivot->precio_especial;
+                if($p->pivot->inner_especial !== null) $innersEspeciales[$p->id] = $p->pivot->inner_especial;
+            }
+        }
+
+        return view('web.index', compact('productos', 'preciosEspeciales', 'innersEspeciales'));
     }
 
     // Método existente para la vista de detalle de producto
     public function show($id){
-        // Obtener el producto por ID
         $producto = Producto::findOrFail($id);        
-        // Pasar el producto a la vista
-        return view('web.item', compact('producto'));
+        
+        // --- NUEVO: EXTRAER PRECIO E INNER ESPECIAL SI EXISTE ---
+        $precioEspecial = null;
+        $innerEspecial = null;
+        if (auth()->check()) {
+            $pivot = auth()->user()->productosEspeciales()->where('producto_id', $id)->first();
+            if ($pivot) {
+                if ($pivot->pivot->precio_especial !== null) $precioEspecial = $pivot->pivot->precio_especial;
+                if ($pivot->pivot->inner_especial !== null) $innerEspecial = $pivot->pivot->inner_especial;
+            }
+        }
+
+        return view('web.item', compact('producto', 'precioEspecial', 'innerEspecial'));
     }
 
     // =================================================================
@@ -72,10 +119,12 @@ class WebController extends Controller
         
         // 2. Cargar clientes: El Admin ve todos, el Agente solo ve los suyos.
         if (auth()->user()->hasRole('admin')) {
-            $clientes = Cliente::where('activo', true)->orderBy('nombre')->get();
+            // Agregamos with('agente') para optimizar la consulta y enviar la info a la vista
+            $clientes = Cliente::with('agente')->where('activo', true)->orderBy('nombre')->get();
         } else {
             // El agente solo ve los clientes donde user_id es su propio ID
-            $clientes = Cliente::where('user_id', $agenteId)
+            $clientes = Cliente::with('agente')
+                              ->where('user_id', $agenteId)
                               ->where('activo', true)
                               ->orderBy('nombre')
                               ->get();

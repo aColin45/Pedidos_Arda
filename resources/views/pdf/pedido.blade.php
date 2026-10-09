@@ -4,43 +4,43 @@
     <meta charset="UTF-8">
     <title>Pedido #{{ $pedido->id }}</title>
     <style>
-        /* CONFIGURACIÓN GENERAL */
-        body { font-family: sans-serif; font-size: 12px; color: #333; margin: 0; padding: 0; }
+        /* CONFIGURACIÓN GENERAL - Letra más grande (de 12px a 14px) */
+        body { font-family: sans-serif; font-size: 14px; color: #333; margin: 0; padding: 0; }
         
-        /* ENCABEZADO - CAMBIADO A VERDE PARA DIFERENCIAR DE COTIZACIÓN */
+        /* ENCABEZADO */
         .header { width: 100%; border-bottom: 2px solid #28a745; padding-bottom: 10px; margin-bottom: 20px; }
         
         /* LOGO */
         .logo { max-width: 180px; height: auto; display: block; }
         
-        /* INFO EMPRESA */
-        .company-info { text-align: right; font-size: 10px; line-height: 1.4; vertical-align: top; }
+        /* INFO EMPRESA - Subió de 10px a 12px */
+        .company-info { text-align: right; font-size: 12px; line-height: 1.4; vertical-align: top; }
         
         /* INFO CLIENTE */
-        .client-info { background-color: #f4f4f4; padding: 10px; margin-bottom: 20px; border-radius: 4px; border: 1px solid #ddd; }
+        .client-info { background-color: #f4f4f4; padding: 12px; margin-bottom: 20px; border-radius: 4px; border: 1px solid #ddd; }
         
-        /* RASTREO / GUÍAS (NUEVO) */
-        .tracking-box { border: 1px solid #17a2b8; background-color: #e3f2fd; padding: 8px; margin-bottom: 15px; border-radius: 4px; font-size: 11px; }
+        /* RASTREO / GUÍAS - Subió de 11px a 13px */
+        .tracking-box { border: 1px solid #17a2b8; background-color: #e3f2fd; padding: 10px; margin-bottom: 15px; border-radius: 4px; font-size: 13px; }
 
-        /* TABLA DE PRODUCTOS - ENCABEZADO VERDE */
+        /* TABLA DE PRODUCTOS - Subió de 11px a 13px */
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th { background-color: #28a745; color: white; padding: 8px; text-align: left; font-size: 11px; }
-        td { border-bottom: 1px solid #ddd; padding: 8px; font-size: 11px; }
+        th { background-color: #28a745; color: white; padding: 10px 8px; text-align: left; font-size: 13px; }
+        td { border-bottom: 1px solid #ddd; padding: 10px 8px; font-size: 13px; }
         
-        /* COMENTARIOS */
-        .comments-section { border: 1px solid #ddd; background-color: #fffde7; padding: 10px; margin-bottom: 20px; border-radius: 4px; font-size: 11px; }
+        /* COMENTARIOS - Subió de 11px a 13px */
+        .comments-section { border: 1px solid #ddd; background-color: #fffde7; padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 13px; }
 
         /* UTILIDADES */
         .text-right { text-align: right; }
-        .badge { background: #eee; padding: 2px 4px; border-radius: 3px; font-size: 9px; color: #555; }
+        .badge { background: #eee; padding: 3px 6px; border-radius: 3px; font-size: 11px; color: #555; }
         .text-success { color: #28a745; font-weight: bold; }
         
         /* SECCIÓN DE TOTALES */
-        .totals { width: 45%; float: right; margin-top: 0px; }
-        .totals table tr td { border: none; padding: 3px 5px; }
+        .totals { width: 50%; float: right; margin-top: 0px; }
+        .totals table tr td { border: none; padding: 4px 5px; }
         
-        /* PIE DE PÁGINA */
-        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #ddd; padding-top: 10px; }
+        /* PIE DE PÁGINA - Subió de 9px a 11px */
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 11px; color: #777; border-top: 1px solid #ddd; padding-top: 10px; }
         .clearfix { clear: both; }
     </style>
 </head>
@@ -55,8 +55,8 @@
                 @else
                     <h2 style="color: #28a745; margin: 0;">GRUPO INDUSTRIAL ARDA</h2>
                 @endif
-                {{-- CAMBIO DE TÍTULO --}}
-                <span style="font-size: 14px; font-weight: bold; color: #555; display:block; margin-top:10px;">ORDEN DE COMPRA #{{ $pedido->id }}</span>
+                {{-- CAMBIO DE TÍTULO - Subió de 14px a 18px --}}
+                <span style="font-size: 18px; font-weight: bold; color: #555; display:block; margin-top:12px;">ORDEN DE COMPRA #{{ $pedido->id }}</span>
             </td>
             <td style="border:none; width: 50%;" class="company-info">
                 <strong>GRUPO INDUSTRIAL ARDA S.A. de C.V.</strong><br>
@@ -77,7 +77,15 @@
                     <strong>CLIENTE:</strong> {{ $pedido->cliente->nombre }}<br>
                     <strong>CÓDIGO:</strong> {{ $pedido->cliente->codigo }}<br>
                     @if($pedido->cliente->email) <strong>EMAIL:</strong> {{ $pedido->cliente->email }}<br> @endif
-                    @if($pedido->cliente->telefono) <strong>TEL:</strong> {{ $pedido->cliente->telefono }} @endif
+                    @if($pedido->cliente->telefono) <strong>TEL:</strong> {{ $pedido->cliente->telefono }}<br> @endif
+                    
+                    {{-- NUEVO: DIRECCIÓN DE ENTREGA --}}
+                    @if($pedido->direccion_entrega)
+                        <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ccc;">
+                            <strong style="color: #28a745;">DIRECCIÓN DE ENTREGA:</strong><br>
+                            {{ $pedido->direccion_entrega }}
+                        </div>
+                    @endif
                 </td>
                 <td style="border:none; width: 40%; text-align: right; vertical-align: top;">
                     <strong>FECHA PEDIDO:</strong> {{ $pedido->created_at->format('d/m/Y h:i A') }}<br>
@@ -111,25 +119,36 @@
         <thead>
             <tr>
                 <th style="width: 15%">CÓDIGO</th>
-                <th style="width: 40%">DESCRIPCIÓN</th>
-                <th style="width: 15%" class="text-right">PRECIO UNITARIO</th>
-                <th style="width: 10%" class="text-right">CANTIDAD</th>
-                <th style="width: 20%" class="text-right">IMPORTE</th>
+                <th style="width: 35%">DESCRIPCIÓN</th>
+                <th style="width: 15%" class="text-right">PRECIO LISTA</th>
+                <th style="width: 15%" class="text-right">PRECIO C/ DESC.</th>
+                <th style="width: 5%" class="text-right">CANT</th>
+                <th style="width: 15%" class="text-right">IMPORTE</th>
             </tr>
         </thead>
         <tbody>
+            @php
+                // Extraemos el porcentaje de descuento que se aplicó a todo el pedido
+                $pct_desc = $pedido->subtotal > 0 ? ($pedido->descuento_aplicado / $pedido->subtotal) : 0;
+            @endphp
             @foreach($pedido->detalles as $detalle)
+            @php
+                $precio_unitario = $detalle->precio;
+                $precio_desc = $precio_unitario - ($precio_unitario * $pct_desc);
+                $importe_linea = $precio_desc * $detalle->cantidad;
+            @endphp
             <tr>
                 <td>{{ $detalle->producto->codigo ?? 'N/A' }}</td>
                 <td>
                     {{ $detalle->producto->nombre ?? 'Producto Eliminado' }}
-                    @if(!($detalle->aplica_iva)) 
+                    @if(!($detalle->producto->aplica_iva ?? true)) 
                         <br><span class="badge">*Exento IVA</span> 
                     @endif
                 </td>
-                <td class="text-right">${{ number_format($detalle->precio, 2) }}</td>
+                <td class="text-right" style="text-decoration: line-through; color: #888;">${{ number_format($precio_unitario, 2) }}</td>
+                <td class="text-right" style="color: #28a745; font-weight: bold;">${{ number_format($precio_desc, 2) }}</td>
                 <td class="text-right">{{ $detalle->cantidad }}</td>
-                <td class="text-right">${{ number_format($detalle->subtotal, 2) }}</td>
+                <td class="text-right">${{ number_format($importe_linea, 2) }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -156,22 +175,22 @@
                 <td class="text-right" style="color: #d9534f;">-${{ number_format($pedido->descuento_aplicado, 2) }}</td>
             </tr>
             @endif
-            {{-- Puedes agregar subtotal neto si lo guardas o calcularlo aquí --}}
             <tr>
                 <td class="text-right">IVA (16%):</td>
                 <td class="text-right">${{ number_format($pedido->iva, 2) }}</td>
             </tr>
             <tr>
-                <td class="text-right" style="font-size: 14px; border-top: 2px solid #333; padding-top: 5px;"><strong>TOTAL:</strong></td>
-                <td class="text-right" style="font-size: 14px; border-top: 2px solid #333; padding-top: 5px;"><strong>${{ number_format($pedido->total, 2) }}</strong></td>
+                {{-- Totales subieron de 14px a 18px --}}
+                <td class="text-right" style="font-size: 18px; border-top: 2px solid #333; padding-top: 5px;"><strong>TOTAL:</strong></td>
+                <td class="text-right" style="font-size: 18px; border-top: 2px solid #333; padding-top: 5px;"><strong>${{ number_format($pedido->total, 2) }}</strong></td>
             </tr>
         </table>
     </div>
 
     <div class="clearfix"></div>
 
-    {{-- 7. NOTAS AL PIE (Diferentes a cotización) --}}
-    <div style="margin-top: 50px; font-size: 10px; color: #555;">
+    {{-- 7. NOTAS AL PIE (Subió de 10px a 12px) --}}
+    <div style="margin-top: 50px; font-size: 12px; color: #555;">
         <p><strong>Información Importante:</strong></p>
         <ul style="padding-left: 20px;">
             <li>Este documento es un comprobante de orden de compra confirmada.</li>

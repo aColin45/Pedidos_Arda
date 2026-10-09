@@ -20,13 +20,25 @@ class CarritoController extends Controller
     {
         $precioBase = $producto->precio;
 
+        // === NUEVO: VERIFICAR SI EL AGENTE TIENE UN PRECIO PIVOTE ESPECIAL ===
+        if (auth()->check()) {
+            $prodEspecial = auth()->user()->productosEspeciales()->where('producto_id', $producto->id)->first();
+            if ($prodEspecial && $prodEspecial->pivot->precio_especial !== null) {
+                // Sobrescribimos el precio base original con su precio único
+                $precioBase = $prodEspecial->pivot->precio_especial;
+            }
+        }
+        // =====================================================================
+
         $clienteId = session('current_client_id');
         if (!$clienteId) {
             return $precioBase; 
         }
 
         $cliente = Cliente::find($clienteId);
-        if (!$cliente || empty($cliente->direccion)) {
+        
+        // CAMBIO: Ahora verificamos que el cliente exista y tenga un ESTADO asignado
+        if (!$cliente || empty($cliente->estado)) {
             return $precioBase;
         }
 
@@ -37,14 +49,15 @@ class CarritoController extends Controller
             return $precioBase;
         }
 
-        // REGLAS: Dirección (Mayúsculas) => Multiplicador
+        // REGLAS: Estado (Mayúsculas) => Multiplicador
         $reglasAumento = [
             'MICHOACAN' => 1.10, // +10%
             'GUERRERO'  => 1.14, // +14%
-            'MONTERREY' => 1.14, // +14%
+            'NUEVO LEON' => 1.14, // +14%
         ];
 
-        $estadoCliente = strtoupper(trim($cliente->direccion));
+        // CAMBIO: Ahora leemos el campo 'estado' en lugar de 'direccion'
+        $estadoCliente = strtoupper(trim($cliente->estado));
 
         if (array_key_exists($estadoCliente, $reglasAumento)) {
             $multiplicador = $reglasAumento[$estadoCliente];
@@ -55,15 +68,33 @@ class CarritoController extends Controller
     }
 
     // =========================================================================
-    // AGREGAR
+    // AGREGAR (MODIFICADO PARA PERMITIR LIBERTAD AL ADMIN)
     // =========================================================================
     public function agregar(Request $request){
         $producto = Producto::findOrFail($request->producto_id);
+        
+        // === NUEVO: VERIFICAR SI HAY UN INNER PIVOTE ESPECIAL ===
         $inner = $producto->inner ?: 1;
+        if (auth()->check()) {
+            $prodEspecial = auth()->user()->productosEspeciales()->where('producto_id', $producto->id)->first();
+            if ($prodEspecial && $prodEspecial->pivot->inner_especial !== null) {
+                $inner = $prodEspecial->pivot->inner_especial;
+            }
+        }
+        // =========================================================
+
         $cantidad = $request->cantidad;
         
-        if ($cantidad < $inner) return redirect()->back()->withErrors(['cantidad' => 'La cantidad mínima es ' . $inner . '.']);
-        if ($cantidad % $inner !== 0) return redirect()->back()->withErrors(['cantidad' => 'La cantidad debe ser un múltiplo de ' . $inner . '.']);
+        // --- INICIO CAMBIO: Validar Inner SOLO si NO es Admin ---
+        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
+            if ($cantidad < $inner) {
+                return redirect()->back()->withErrors(['cantidad' => 'La cantidad mínima es ' . $inner . '.']);
+            }
+            if ($cantidad % $inner !== 0) {
+                return redirect()->back()->withErrors(['cantidad' => 'La cantidad debe ser un múltiplo de ' . $inner . '.']);
+            }
+        }
+        // --- FIN CAMBIO ---
         
         $precioAUsar = $this->calcularPrecioBaseRegional($producto);
 
@@ -86,7 +117,6 @@ class CarritoController extends Controller
         return redirect()->back()->with('mensaje', 'Producto agregado');
     }
 
-    // ... (Sumar, Restar, Actualizar, Eliminar, Vaciar IGUALES) ...
     public function sumar(Request $request){
         $carrito = session()->get('carrito', []);
         if (isset($carrito[$request->producto_id])) {
@@ -129,18 +159,16 @@ class CarritoController extends Controller
     }
 
     // =========================================================================
-    // MOSTRAR (MODIFICADA PARA DETECTAR CAMBIO DE CLIENTE)
+    // MOSTRAR (MODIFICADA PARA DETECTAR CAMBIO DE CLIENTE Y REDONDEO EXACTO)
     // =========================================================================
-    public function mostrar(Request $request){ // <-- AHORA RECIBE REQUEST
+    public function mostrar(Request $request){
         
-        // 1. SI VIENE UN CLIENTE EN LA URL, ACTUALIZAMOS LA SESIÓN PRIMERO
         if ($request->has('cliente_id')) {
             session(['current_client_id' => $request->cliente_id]);
         }
 
         $carrito = session('carrito', []);
         
-        // 2. RECALCULAR PRECIOS DEL CARRITO SEGÚN EL CLIENTE ACTUAL
         if (!empty($carrito)) {
             $huboCambios = false;
             foreach ($carrito as $id => $item) {
@@ -148,7 +176,6 @@ class CarritoController extends Controller
                 if ($productoDB) {
                     $nuevoPrecio = $this->calcularPrecioBaseRegional($productoDB);
                     
-                    // Si el precio cambio (por región), actualizamos el carrito
                     if ($carrito[$id]['precio'] != $nuevoPrecio) {
                         $carrito[$id]['precio'] = $nuevoPrecio;
                         $huboCambios = true;
@@ -189,23 +216,37 @@ class CarritoController extends Controller
             $precio = $item['precio'] ?? 0;
             $cantidad = $item['cantidad'] ?? 0;
             $aplicaIva = $item['aplica_iva'] ?? true;
+
+            // 1. Redondeamos el descuento por UNA sola pieza (Ej: 14.09 * 40% = 5.64)
+            $descuentoUnitario = round($precio * (floatval($descuentoCliente) / 100), 2);
+            
+            // 2. Sacamos el precio neto unitario exacto (Ej: 14.09 - 5.64 = 8.45 cerrado)
+            $precioNetoUnitario = $precio - $descuentoUnitario; 
+
+            // 3. Multiplicamos por el volumen (Ej: 8.45 * 3000 = 25,350.00 exactos)
+            $subtotalLineaNeto = $precioNetoUnitario * $cantidad;
+            
+            // Guardamos el bruto para el reporte visual
             $subtotalLineaBruto = $precio * $cantidad;
             $subtotalBruto += $subtotalLineaBruto;
-            $montoDescuentoLinea = $subtotalLineaBruto * (floatval($descuentoCliente) / 100);
-            $subtotalLineaNeto = $subtotalLineaBruto - $montoDescuentoLinea;
-            if ($aplicaIva) $subtotalNetoGravable += $subtotalLineaNeto;
-            else $subtotalNetoExento += $subtotalLineaNeto;
+
+            if ($aplicaIva) {
+                $subtotalNetoGravable += $subtotalLineaNeto;
+            } else {
+                $subtotalNetoExento += $subtotalLineaNeto;
+            }
         }
 
-        $montoDescuento = $subtotalBruto * (floatval($descuentoCliente) / 100);
-        $montoIVA = $subtotalNetoGravable * self::IVA_RATE;
-        $totalFinal = $subtotalNetoGravable + $subtotalNetoExento + $montoIVA;
+        // REDONDEO EN LOS TOTALES GLOBALES PARA EVITAR DESFASES DE CENTAVOS
+        $montoDescuento = round($subtotalBruto * (floatval($descuentoCliente) / 100), 2);
+        $montoIVA = round($subtotalNetoGravable * self::IVA_RATE, 2);
+        $totalFinal = round($subtotalNetoGravable + $subtotalNetoExento + $montoIVA, 2);
 
         return view('web.pedido', compact('carrito', 'subtotalBruto', 'descuentoCliente', 'montoDescuento', 'subtotalNetoGravable', 'subtotalNetoExento', 'montoIVA', 'totalFinal', 'clientesParaSelector'));
     }
 
     // =========================================================================
-    // GENERAR PDF DE COTIZACIÓN (SIN CAMBIOS)
+    // GENERAR PDF DE COTIZACIÓN (CON REDONDEO EXACTO)
     // =========================================================================
     public function generarPdfCotizacion(Request $request)
     {
@@ -248,13 +289,15 @@ class CarritoController extends Controller
         } catch (\Exception $e) {}
 
         $descuentoAplicar = 0.0;
+        $esMostrador = str_contains(strtoupper($cliente->nombre), 'VENTAS DE MOSTRADOR') || str_contains(strtoupper($cliente->nombre), 'VENTAS MOSTRADOR');
         
-        if ($cliente->codigo === 'GENERAL') {
+        if ($cliente->codigo === 'GENERAL' || $esMostrador) {
             $manual = $request->input('descuento_manual');
             if ($manual !== null && $manual !== '' && is_numeric($manual)) {
                 $descuentoAplicar = floatval($manual);
             } else {
-                $descuentoAplicar = 40.0; 
+                // Si falla algo, toma el 40% para General, o el de la base de datos para Mostrador
+                $descuentoAplicar = ($cliente->codigo === 'GENERAL') ? 40.0 : floatval($cliente->descuento ?? 0); 
             }
         } else {
             $descuentoAplicar = floatval($cliente->descuento ?? 0);
@@ -272,7 +315,8 @@ class CarritoController extends Controller
             $lineaBruto = $precio * $cantidad;
             $subtotalBruto += $lineaBruto;
 
-            $descuentoLinea = $lineaBruto * ($descuentoAplicar / 100);
+            // APLICACIÓN DEL REDONDEO EXACTO A 2 DECIMALES EN LA LÍNEA DEL PDF
+            $descuentoLinea = round($lineaBruto * ($descuentoAplicar / 100), 2);
             $lineaNeto = $lineaBruto - $descuentoLinea;
 
             if ($aplicaIva) {
@@ -282,9 +326,10 @@ class CarritoController extends Controller
             }
         }
 
-        $montoDescuentoTotal = $subtotalBruto * ($descuentoAplicar / 100);
-        $montoIva = $subtotalNetoGravable * self::IVA_RATE;
-        $totalFinal = $subtotalNetoGravable + $subtotalNetoExento + $montoIva;
+        // REDONDEO EN LOS TOTALES GLOBALES DEL PDF
+        $montoDescuentoTotal = round($subtotalBruto * ($descuentoAplicar / 100), 2);
+        $montoIva = round($subtotalNetoGravable * self::IVA_RATE, 2);
+        $totalFinal = round($subtotalNetoGravable + $subtotalNetoExento + $montoIva, 2);
 
         $comentarios = $request->input('comentarios_pdf'); 
 

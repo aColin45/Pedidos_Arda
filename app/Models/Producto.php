@@ -24,8 +24,24 @@ class Producto extends Model
         'aplica_iva' => 'boolean',
     ];
 
-    // Aquí irían tus relaciones si las tienes (ej. con PedidoDetalle)
-    // public function detallesPedido() {
-    //     return $this->hasMany(PedidoDetalle::class);
-    // }
+    // --- NUEVA RELACIÓN PARA PRODUCTOS ESPECIALES ---
+    // Relación: Un producto especial puede ser visto por varios usuarios
+    public function usuariosPermitidos()
+    {
+        return $this->belongsToMany(User::class, 'producto_user', 'producto_id', 'user_id');
+    }
+
+    // Relación: Un producto puede estar en varios almacenes
+    public function almacenes()
+    {
+        return $this->belongsToMany(Almacen::class, 'almacen_producto')
+                    ->withPivot('cantidad')
+                    ->withTimestamps();
+    }
+    
+    // Función de ayuda para sumar todo el stock disponible
+    public function getStockTotalAttribute()
+    {
+        return $this->almacenes()->sum('almacen_producto.cantidad');
+    }
 }

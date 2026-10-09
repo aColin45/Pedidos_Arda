@@ -39,6 +39,14 @@ class PedidoDetallesExport implements FromQuery, WithHeadings, WithMapping, Shou
 
         // Aplica los filtros usando whereHas sobre la relación 'pedido'
         $query->whereHas('pedido', function ($q) {
+            
+            // ====================================================================
+            // ---> AQUÍ AGREGAMOS EL BLINDAJE PARA IGNORAR COTIZACIONES <---
+            // ====================================================================
+            $q->where('is_cotizacion', 0)
+              ->whereNotIn('estado', ['cotizacion', 'Cotizacion', 'COTIZACION']);
+            // ====================================================================
+
             if (!empty($this->month)) {
                 $q->whereMonth('created_at', $this->month);
             }
@@ -46,62 +54,60 @@ class PedidoDetallesExport implements FromQuery, WithHeadings, WithMapping, Shou
                 $q->whereYear('created_at', $this->year);
             }
             if (!empty($this->texto)) {
-                $q->where(function($subQuery) {
-                     $subQuery->whereHas('agente', function ($agentQuery) {
-                         $agentQuery->where('name', 'like', "%{$this->texto}%");
-                     })->orWhereHas('cliente', function ($clientQuery) {
-                         $clientQuery->where('nombre', 'like', "%{$this->texto}%");
-                     });
+                $q->where(function ($subQ) {
+                    $subQ->where('id', 'like', "%{$this->texto}%") // Buscar por ID de Pedido
+                         ->orWhereHas('cliente', function ($clienteQ) {
+                             $clienteQ->where('nombre', 'like', "%{$this->texto}%")
+                                      ->orWhere('codigo', 'like', "%{$this->texto}%"); // También por código de cliente
+                         })
+                         ->orWhereHas('agente', function ($agenteQ) {
+                             $agenteQ->where('name', 'like', "%{$this->texto}%");
+                         })
+                         // --- NUEVO: Búsqueda por producto ---
+                         ->orWhereHas('detalles.producto', function ($productoQ) {
+                             $productoQ->where('codigo', 'like', "%{$this->texto}%")
+                                       ->orWhere('nombre', 'like', "%{$this->texto}%");
+                         });
                 });
             }
         });
-
-        $query->orderBy('pedido_id', 'desc');
 
         return $query;
     }
 
     /**
-     * Define los encabezados de las columnas para el archivo Excel.
+     * Define los encabezados de las columnas en el Excel.
      */
     public function headings(): array
     {
         return [
-            'ID Alterno',       // ID Pedido
-            'Fecha Documento',     // Fecha Pedido
+            'ID Alterno',
+            'Fecha Documento',
             'Estado Pedido',
-            'Razón Social',            // Cliente
+            'Razón Social',
             'Código Cliente',
+            'Lista de Precios',  
             'Agente Creador',
-            'Precio Lista',      // El precio original
+            'Precio Lista', 
             'Inner',
-            'Detalle - Cantidad',        // Cantidad
-            'Detalle - Clave',       // Clave Producto
+            'Detalle - Cantidad',
+            'Detalle - Clave',
             'Nombre Producto',
-            'Detalle - Precio Unitario',   // El precio ya con descuento   (Precio Unitario)
+            'Detalle - Precio Unitario', 
             'Total Pedido',
-            'Detalle - Impuesto',     // IVA 16% o IVA 0%          (Tipo Impuesto)
+            'Detalle - Impuesto',
             'Comentarios Pedido',
-            'Flete Pagado', 
+            'Flete Pagado',
         ];
     }
 
     /**
-     * Mapea los datos de cada detalle de pedido al formato deseado.
+     * Mapea los datos de cada fila para el Excel.
      */
     public function map($detalle): array
     {
-        // --- 1. CÁLCULOS ---
-        
-        // Cálculo del porcentaje
-        $subtotalPedido = $detalle->pedido->subtotal ?? 0;
-        $descuentoMonto = $detalle->pedido->descuento_aplicado ?? 0;
-        $porcentajeDesc = 0;
-
-        if ($subtotalPedido > 0 && $descuentoMonto > 0) {
-            $porcentajeDesc = ($descuentoMonto / $subtotalPedido) * 100;
-        }
-        $porcentajeDesc = round($porcentajeDesc);
+        // Obtener el porcentaje de descuento del cliente (ej. 40)
+        $porcentajeDesc = $detalle->pedido->cliente->descuento ?? 0;
 
         // Cálculo de precios
         $precioLista = $detalle->precio; 
@@ -126,6 +132,7 @@ class PedidoDetallesExport implements FromQuery, WithHeadings, WithMapping, Shou
             ucfirst($detalle->pedido->estado ?? 'N/A'),
             $detalle->pedido->cliente->nombre ?? 'N/A',
             $detalle->pedido->cliente->codigo ?? 'N/A',
+            $detalle->pedido->cliente->contacto ?? 'N/A',
             $detalle->pedido->agente->name ?? 'N/A',
             
             $precioLista,           
@@ -135,11 +142,10 @@ class PedidoDetallesExport implements FromQuery, WithHeadings, WithMapping, Shou
             $detalle->producto->nombre ?? 'N/A', 
             $precioUnitarioNeto,    
             
-            $detalle->pedido->total ?? 'N/A', 
-            
-            $tipoImpuesto, // Aquí saldrá "IVA 16%" o "IVA 0%"
-            $detalle->pedido->comentarios ?? '',
-            ($detalle->pedido->flete_pagado ?? false) ? 'Sí' : 'No',
+            $detalle->pedido->total ?? 0,
+            $tipoImpuesto, 
+            $detalle->pedido->comentarios ?? '', 
+            'No' 
         ];
     }
 }

@@ -10,28 +10,77 @@
         <nav class="mt-2">
             <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu" data-accordion="false">
                 
-                {{-- 1. DASHBOARD --}}
-                {{-- La corrección principal es agregar 'active' si la ruta es 'dashboard' --}}
+                {{-- 1. DASHBOARD (Suele ser público para todos los logueados) --}}
                 <li class="nav-item">
                     <a href="{{route('dashboard')}}" class="nav-link @if(request()->routeIs('dashboard')) active @endif" id="mnuDashboard">
                         <i class="nav-icon bi bi-speedometer"></i>
                         <p>Dashboard</p>
                     </a>
                 </li>
+
+                {{-- 2. PROSPECTOS --}}
+                @can('prospecto-list')
+                <li class="nav-item">
+                    <a href="{{ route('prospectos.index') }}" class="nav-link @if(request()->routeIs('prospectos.*')) active @endif" id="navProspectos">
+                        <i class="nav-icon fas fa-user-tag"></i>
+                        <p>Prospectos</p>
+                    </a>
+                </li>
+                @endcan
+
+                {{-- 2.1 BITÁCORA DE VISITAS --}}
+                @can('visita-list')
+                <li class="nav-item">
+                    <a href="{{ route('visitas.index') }}" class="nav-link @if(request()->routeIs('visitas.*')) active @endif" id="navVisitas">
+                        <i class="nav-icon fas fa-route"></i>
+                        <p>Bitácora de Visitas</p>
+                    </a>
+                </li>
+                @endcan
+
+                {{-- 3. ALTAS DE CLIENTES --}}
+                @can('alta-list')
+                <li class="nav-item">
+                    <a class="nav-link @if(request()->routeIs('altas.*')) active @endif" href="{{ route('altas.index') }}">
+                        <i class="nav-icon fas fa-user-plus"></i> 
+                        <p>Altas de Clientes</p>
+                    </a>
+                </li>
+                @endcan
+
+                {{-- 4. COTIZACIONES --}}
+                @can('cotizacion-list')
+                <li class="nav-item">
+                    <a class="nav-link @if(request()->routeIs('cotizaciones.*')) active @endif" href="{{ route('cotizaciones.index') }}">
+                        <i class="nav-icon fas fa-file-invoice-dollar"></i> 
+                        <p>Cotizaciones</p>
+                    </a>
+                </li>
+                @endcan
                 
-                {{-- 2. PEDIDOS (para el listado) --}}
-                {{-- Activo si la ruta es 'perfil.pedidos' --}}
+                {{-- 5. PEDIDOS --}}
+                @can('pedido-list')
                 <li class="nav-item">
                     <a href="{{route('perfil.pedidos')}}" class="nav-link @if(request()->routeIs('perfil.pedidos')) active @endif" id="mnuPedidos">
                         <i class="nav-icon bi bi-bag-fill"></i>
                         <p>Pedidos</p>
                     </a>
                 </li>
+                @endcan
+
+                {{-- 6. DEVOLUCIONES --}}
+                @can('devolucion-list')
+                <li class="nav-item {{ Request::is('devoluciones*') ? 'active' : '' }}">
+                    <a class="nav-link" href="{{ route('devoluciones.index') }}">
+                        <i class="fas fa-fw fa-undo-alt" style="margin-right: 8px;"></i>
+                        <span>Devoluciones</span>
+                    </a>
+                </li>
+                @endcan
 
                 {{-- ---------------------------------------------------- --}}
                 
-                {{-- 4. SEGURIDAD (Usuarios y Roles) --}}
-                {{-- Clase 'menu-open' y 'active' para el menú desplegable --}}
+                {{-- 7. SEGURIDAD (Usuarios y Roles) --}}
                 @php
                     $isSeguridadActive = request()->routeIs('usuarios.*') || request()->routeIs('roles.*');
                 @endphp
@@ -62,15 +111,15 @@
 
                 {{-- ---------------------------------------------------- --}}
 
-                {{-- 5. ALMACÉN/GESTIÓN (Productos) - Unificando tu código 1 y 2 --}}
-                {{-- Clase 'menu-open' y 'active' para el menú desplegable --}}
+                {{-- 8. GESTIÓN (Clientes, Productos, Inventarios y Desarrollos) --}}
                 @php
-                    $isGestionActive = request()->routeIs('productos.*') || request()->routeIs('clientes.*');
+                    // Actualizamos la variable para que la carpeta se abra si estamos en cualquiera de los 4 módulos
+                    $isGestionActive = request()->routeIs('productos.*') || request()->routeIs('clientes.*') || request()->routeIs('desarrollos.*') || request()->routeIs('inventarios.*');
                 @endphp
-                @canany(['producto-list', 'cliente-list'])
+                @canany(['producto-list', 'cliente-list', 'inventario-list', 'desarrollo-list'])
                 <li class="nav-item @if($isGestionActive) menu-open @endif" id="mnuGestion">
                     <a href="#" class="nav-link @if($isGestionActive) active @endif">
-                        <i class="nav-icon bi bi-box-seam"></i> {{-- Icono de Gestión --}}
+                        <i class="nav-icon bi bi-box-seam"></i>
                         <p>Gestión<i class="nav-arrow bi bi-chevron-right"></i></p>
                     </a>
                     <ul class="nav nav-treeview">
@@ -94,11 +143,31 @@
                             </a>
                         </li>
                         @endcan
+
+                        {{-- GESTIÓN DE INVENTARIOS --}}
+                        @can('inventario-list')
+                        <li class="nav-item">
+                            <a href="{{route('inventarios.index')}}" class="nav-link @if(request()->routeIs('inventarios.*')) active @endif" id="itemInventario">
+                                <i class="nav-icon bi bi-boxes"></i>
+                                <p>Gestión de Inventarios</p>
+                            </a>
+                        </li>
+                        @endcan
+
+                        {{-- PRODUCTOS NUEVOS Y DESARROLLOS --}}
+                        @can('desarrollo-list')
+                        <li class="nav-item">
+                            <a href="{{ route('desarrollos.index') }}" class="nav-link @if(request()->routeIs('desarrollos.*')) active @endif" id="navDesarrollos">
+                                <i class="nav-icon fas fa-lightbulb"></i>
+                                <p>Productos Nuevos / Desarrollos</p>
+                            </a>
+                        </li>
+                        @endcan
                     </ul>
                 </li>
                 @endcanany
-                
+
             </ul>
-            </nav>
+        </nav>
     </div>
-    </aside>
+</aside>

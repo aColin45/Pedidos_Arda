@@ -1,16 +1,13 @@
 @extends('plantilla.app')
 @section('contenido')
 <div class="app-content">
-    <!--begin::Container-->
     <div class="container-fluid">
-        <!--begin::Row-->
         <div class="row">
             <div class="col-md-12">
                 <div class="card mb-4">
                     <div class="card-header">
                         <h3 class="card-title">Usuarios</h3>
                     </div>
-                    <!-- /.card-header -->
                     <div class="card-body">
                         <div>
                             <form action="{{route('usuarios.index')}}" method="get">
@@ -48,28 +45,55 @@
                                 <tbody>
                                     @if(count($registros)<=0)
                                         <tr>
-                                            <td colspan="6">No hay registros que coincidan con la búsqueda</td>
+                                            <td colspan="6" class="text-center py-4">No hay registros que coincidan con la búsqueda</td>
                                         </tr>
                                     @else
                                         @foreach($registros as $reg)
                                             <tr class="align-middle">
                                                 <td>
-                                                    @can('user-edit')
-                                                    <a href="{{route('usuarios.edit', $reg->id)}}" class="btn btn-info btn-sm"><i class="bi bi-pencil-fill"></i></a>&nbsp;
-                                                    @endcan
+                                                    <div class="d-inline-flex align-items-center">
+                                                        
+                                                        {{-- 1. BOTÓN EDITAR --}}
+                                                        @can('user-edit')
+                                                        <a href="{{route('usuarios.edit', $reg->id)}}" class="btn btn-info btn-sm me-1" title="Editar">
+                                                            <i class="bi bi-pencil-fill"></i>
+                                                        </a>
+                                                        @endcan
 
-                                                    @can('user-delete')
-                                                    <button class="btn btn-danger btn-sm" data-bs-toggle="modal"
-                                                            data-bs-target="#modal-eliminar-{{$reg->id}}"><i class="bi bi-trash-fill"></i>
-                                                    </button>
-                                                    @endcan
-                                                    
-                                                    @can('user-activate')
-                                                    <button class="btn {{ $reg->activo ? 'btn-warning' : 'btn-success'}} btn-sm" data-bs-toggle="modal"
-                                                            data-bs-target="#modal-toggle-{{$reg->id}}">
-                                                            <i class="bi {{$reg->activo ? 'bi-ban' : 'bi-check-circle'}}"></i>
-                                                    </button>
-                                                    @endcan
+                                                        {{-- 2. BOTÓN ELIMINAR CON SWEETALERT2 --}}
+                                                        @can('user-delete')
+                                                        <form action="{{route('usuarios.destroy', $reg->id)}}" method="POST" class="d-inline form-confirmar"
+                                                              data-title="¿Eliminar Usuario?" 
+                                                              data-text="Se eliminará permanentemente a '{{$reg->name}}'. Esta acción no se puede deshacer." 
+                                                              data-icon="warning" 
+                                                              data-color="#dc3545" 
+                                                              data-btn-text="Sí, eliminar">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-danger btn-sm me-1" title="Eliminar">
+                                                                <i class="bi bi-trash-fill"></i>
+                                                            </button>
+                                                        </form>
+                                                        @endcan
+                                                        
+                                                        {{-- 3. BOTÓN TOGGLE (ACTIVAR/DESACTIVAR) CON SWEETALERT2 --}}
+                                                        @can('user-activate')
+                                                        <form action="{{route('usuarios.toggle', $reg->id)}}" method="POST" class="d-inline form-confirmar"
+                                                              data-title="{{ $reg->activo ? '¿Desactivar Usuario?' : '¿Activar Usuario?' }}" 
+                                                              data-text="{{ $reg->activo ? 'El usuario ya no podrá acceder al sistema.' : 'El usuario volverá a tener acceso.' }}" 
+                                                              data-icon="question" 
+                                                              data-color="{{ $reg->activo ? '#ffc107' : '#198754' }}" 
+                                                              data-btn-text="Sí, {{ $reg->activo ? 'Desactivar' : 'Activar' }}">
+                                                            @csrf
+                                                            @method('PATCH')
+                                                            <button type="submit" class="btn {{ $reg->activo ? 'btn-warning' : 'btn-success'}} btn-sm"
+                                                                    title="{{ $reg->activo ? 'Desactivar' : 'Activar' }}">
+                                                                <i class="bi {{$reg->activo ? 'bi-ban' : 'bi-check-circle'}}"></i>
+                                                            </button>
+                                                        </form>
+                                                        @endcan
+
+                                                    </div>
                                                 </td>
                                                 <td>{{$reg->id}}</td>
                                                 <td>{{$reg->name}}</td>
@@ -89,12 +113,6 @@
                                                     </span>
                                                 </td>
                                             </tr>
-                                            @can('user-delete')
-                                                @include('usuario.delete')
-                                            @endcan
-                                            @can('user-activate')
-                                                @include('usuario.activate')
-                                            @endcan
                                         @endforeach
                                     @endif
                                 </tbody>
@@ -102,19 +120,14 @@
                         </div>
 
                     </div>
-                    <!-- /.card-body -->
                     <div class="card-footer clearfix">
                         {{$registros->appends(["texto"=>$texto])}}
                     </div>
                 </div>
-                <!-- /.card -->
+                </div>
             </div>
-            <!-- /.col -->
         </div>
-        <!--end::Row-->
     </div>
-    <!--end::Container-->
-</div>
 @endsection
 @push('scripts')
 <script>

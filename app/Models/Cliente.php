@@ -11,7 +11,10 @@ class Cliente extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['nombre', 'codigo', 'contacto', 'telefono', 'email', 'direccion', 'activo', 'user_id', 'descuento'];
+    protected $fillable = ['nombre', 'codigo', 'contacto', 'telefono', 'email', 'direccion', 'estado', 'activo', 'user_id', 'descuento', 'monto_credito', 
+        'dias_credito', 
+        'fecha_otorgamiento', 
+        'referencia_bancaria'];
 
     // Relación con el Agente de Ventas (User)
     public function agente()

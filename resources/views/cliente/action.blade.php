@@ -22,25 +22,17 @@
                         @error('nombre')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 
-                    {{-- =================================== --}}
-                    {{-- ||    CAMPO DE CÓDIGO      || --}}
-                    {{-- =================================== --}}
+                    {{-- Campo de Código --}}
                     <div class="col-md-6 mb-3">
                         <label for="codigo">Código</label>
                         <input type="text" name="codigo" id="codigo"
                                class="form-control @error('codigo') is-invalid @enderror"
-                               {{-- Rellena el valor si existe (para editar) o usa el old input --}}
                                value="{{ old('codigo', $cliente->codigo ?? '') }}">
-                        @error('codigo')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                        @error('codigo')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
-                    {{-- =================================== --}}
+                </div> 
 
-                </div> {{-- Cerramos el primer row --}}
-
-                <div class="row"> {{-- Abrimos nuevo row para Email y Teléfono --}}
-
+                <div class="row"> 
                     {{-- Campo Email --}}
                     <div class="col-md-6 mb-3">
                         <label for="email">Email</label>
@@ -56,35 +48,44 @@
                                value="{{ old('telefono', $cliente->telefono ?? '') }}">
                         @error('telefono')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
+                </div> 
 
-                </div> {{-- Cerramos el row de Email/Teléfono --}}
-
-                <div class="row"> {{-- Abrimos nuevo row para Contacto y Dirección --}}
-                    {{-- Campo Contacto --}}
-                    <div class="col-md-6 mb-3"> {{-- Cambiado a col-md-6 --}}
-                        <label for="contacto">Persona de Contacto</label>
+                <div class="row">
+                    {{-- Campo Contacto (Lista de Precios) --}}
+                    <div class="col-md-6 mb-3"> 
+                        <label for="contacto">Lista de Precios</label>  
                         <input type="text" name="contacto" class="form-control @error('contacto') is-invalid @enderror"
                                value="{{ old('contacto', $cliente->contacto ?? '') }}">
                         @error('contacto')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 
-                    {{-- Campo Dirección --}}
-                    <div class="col-md-6 mb-3"> {{-- Cambiado a col-md-6 --}}
+                    {{-- NUEVO: Campo Estado (Para los precios) --}}
+                    <div class="col-md-6 mb-3">
+                        <label for="estado">Estado <small class="text-muted">(Para Zona de Precios, Ej: MICHOACAN)</small></label>
+                        <input type="text" name="estado" class="form-control @error('estado') is-invalid @enderror"
+                               value="{{ old('estado', $cliente->estado ?? '') }}">
+                        @error('estado')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                </div> 
+
+                {{-- NUEVO: Fila completa para la Dirección --}}
+                <div class="row">
+                    <div class="col-md-12 mb-3"> 
                         <label for="direccion">Dirección</label>
-                        <input type="text" name="direccion" {{-- Cambiado a input por consistencia --}}
+                        <input type="text" name="direccion" 
                                class="form-control @error('direccion') is-invalid @enderror"
-                               value="{{ old('direccion', $cliente->direccion ?? '') }}">
+                               value="{{ old('direccion', $cliente->direccion ?? '') }}" 
+                               placeholder="Calle, Número, Colonia, Municipio/Ciudad, C.P.">
                         @error('direccion')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
-                </div> {{-- Cerramos row de Contacto/Dirección --}}
+                </div>
 
                 <div class="row">
                     {{-- Campo de Asignación de Agente (SOLO PARA ADMIN) --}}
                     @if(Auth::user()->hasRole('admin'))
                     <div class="col-md-6 mb-3">
                         <label for="user_id">Asignar Agente de Ventas</label>
-                        <select name="user_id" class="form-select @error('user_id') is-invalid @enderror" required> {{-- Agregado required --}}
-                            {{-- <option value="">-- Seleccione Agente --</option> --}} {{-- Quitado "Sin Agente" --}}
+                        <select name="user_id" class="form-select @error('user_id') is-invalid @enderror" required> 
                             @foreach($agentes as $agente)
                             <option value="{{ $agente->id }}"
                                 {{ old('user_id', $cliente->user_id ?? '') == $agente->id ? 'selected' : '' }}>
@@ -109,9 +110,9 @@
                             $opcionesDescuento = [32.00, 34.00, 36.00, 40.00];
                             @endphp
                             @foreach($opcionesDescuento as $opcion)
-                            <option value="{{ number_format($opcion, 2, '.', '') }}" {{-- Usar '.' como separador decimal --}}
+                            <option value="{{ number_format($opcion, 2, '.', '') }}" 
                                 {{ old('descuento', $cliente->descuento ?? 0.00) == $opcion ? 'selected' : '' }}>
-                                {{ number_format($opcion, 0) }}% {{-- Mostrar sin decimales --}}
+                                {{ number_format($opcion, 0) }}% 
                             </option>
                             @endforeach
                         </select>
@@ -119,8 +120,36 @@
                     </div>
                 </div>
 
+                {{-- ============================================================ --}}
+                {{-- NUEVO BLOQUE: CONDICIONES DE CRÉDITO Y PAGOS (SOLO ADMIN) --}}
+                {{-- ============================================================ --}}
+                @if(Auth::user()->hasRole('admin'))
+                <div class="row mt-2 mb-3 pb-3 border-bottom">
+                    <div class="col-12 mb-2">
+                        <h6 class="text-success font-weight-bold"><i class="fas fa-money-check-alt mr-1"></i> Condiciones de Crédito y Pagos</h6>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label text-muted small mb-1">Monto Crédito ($)</label>
+                        <input type="number" step="0.01" name="monto_credito" class="form-control" value="{{ old('monto_credito', isset($cliente) ? $cliente->monto_credito : '0.00') }}">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label text-muted small mb-1">Días de Crédito</label>
+                        <input type="number" name="dias_credito" class="form-control" value="{{ old('dias_credito', isset($cliente) ? $cliente->dias_credito : '0') }}">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label text-muted small mb-1">Otorgado el</label>
+                        <input type="date" name="fecha_otorgamiento" class="form-control" value="{{ old('fecha_otorgamiento', isset($cliente) && $cliente->fecha_otorgamiento ? \Carbon\Carbon::parse($cliente->fecha_otorgamiento)->format('Y-m-d') : '') }}">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label text-muted small mb-1">Referencia Bancaria</label>
+                        <input type="text" name="referencia_bancaria" class="form-control" value="{{ old('referencia_bancaria', isset($cliente) ? $cliente->referencia_bancaria : '') }}">
+                    </div>
+                </div>
+                @endif
+                {{-- ============================================================ --}}
+
                 <div class="row">
-                    {{-- Campo Activo (Solo visible/editable por Admin) --}}
+                    {{-- Campo Activo --}}
                     @if(Auth::user()->hasRole('admin'))
                         <div class="col-md-6 mb-3">
                             <label for="activo">Estado del Cliente</label>
@@ -131,7 +160,6 @@
                             @error('activo')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                     @else
-                        {{-- Si es agente, el cliente siempre se crea como activo --}}
                         <input type="hidden" name="activo" value="1">
                     @endif
                 </div>

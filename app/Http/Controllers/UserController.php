@@ -8,6 +8,7 @@ use App\Http\Requests\UserRequest;
 use Spatie\Permission\Models\Role;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Hash;
+use App\Models\Producto;
 
 class UserController extends Controller
 {
@@ -34,7 +35,13 @@ class UserController extends Controller
     {
         $this->authorize('user-create'); 
         $roles=Role::all();
-        return view('usuario.action', compact('roles'));
+        
+        // --- NUEVO: MANDAR LOS PRODUCTOS ESPECIALES A LA VISTA PARA USUARIOS NUEVOS ---
+        // Ahora mandamos TODOS los productos, para poder asignarles precios especiales a cualquiera
+        $productosCatalogo = Producto::orderBy('es_especial', 'desc')->orderBy('nombre')->get();
+        
+        // Corregido: Se quitó $registro del compact porque en create() aún no existe
+        return view('usuario.action', compact('roles', 'productosCatalogo')); 
     }
 
     /**
@@ -48,9 +55,34 @@ class UserController extends Controller
         $registro->email=$request->input('email');
         $registro->password=Hash::make($request->input('password'));
         $registro->activo=$request->input('activo');
+        
+        // --- NUEVO: GUARDAR METAS ---
+        if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('superadmin')) {
+            $registro->meta_mensual_base = $request->input('meta_mensual_base', 0);
+            $registro->saldo_meta_acumulado = $request->input('saldo_meta_acumulado', 0);
+        }
+        
         $registro->save();
 
         $registro->assignRole($request->input('role'));
+
+        // --- NUEVO: ASIGNAR PRODUCTOS ESPECIALES AL CREAR (CON PRECIO E INNER PIVOTE) ---
+        if ($request->has('productos_especiales')) {
+            $syncData = [];
+            foreach ($request->productos_especiales as $producto_id) {
+                // Capturamos el precio y el inner que el admin escribió
+                $precioEspecial = $request->input("precios_especiales.{$producto_id}");
+                $innerEspecial = $request->input("inners_especiales.{$producto_id}");
+                
+                // Lo guardamos estructurado para la tabla pivote
+                $syncData[$producto_id] = [
+                    'precio_especial' => $precioEspecial,
+                    'inner_especial' => $innerEspecial
+                ];
+            }
+            $registro->productosEspeciales()->sync($syncData);
+        }
+
         return redirect()->route('usuarios.index')->with('mensaje', 'Registro '.$registro->name. '  agregado correctamente');
     }
 
@@ -69,8 +101,13 @@ class UserController extends Controller
     {
         $this->authorize('user-edit'); 
         $roles=Role::all();
-        $registro=User::findOrFail($id);
-        return view('usuario.action', compact('registro','roles'));
+        $registro=User::with('productosEspeciales')->findOrFail($id); 
+        
+        // --- NUEVO: MANDAR LOS PRODUCTOS ESPECIALES A LA VISTA ---
+        // Ahora mandamos TODOS los productos, para poder asignarles precios especiales a cualquiera
+        $productosCatalogo = Producto::orderBy('es_especial', 'desc')->orderBy('nombre')->get();
+        
+        return view('usuario.action', compact('registro','roles', 'productosCatalogo')); 
     }
 
     /**
@@ -86,9 +123,35 @@ class UserController extends Controller
             $registro->password=Hash::make($request->input('password'));
         }
         $registro->activo=$request->input('activo');
+        
+        // --- NUEVO: GUARDAR METAS ---
+        if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('superadmin')) {
+            $registro->meta_mensual_base = $request->input('meta_mensual_base', 0);
+            $registro->saldo_meta_acumulado = $request->input('saldo_meta_acumulado', 0);
+        }
+        
         $registro->save();
 
         $registro->syncRoles([$request->input('role')]);
+
+        // --- NUEVO: ACTUALIZAR PRODUCTOS ESPECIALES AL EDITAR (CON PRECIO E INNER PIVOTE) ---
+        if ($request->has('productos_especiales')) {
+            $syncData = [];
+            foreach ($request->productos_especiales as $producto_id) {
+                // Capturamos el precio y el inner que el admin escribió
+                $precioEspecial = $request->input("precios_especiales.{$producto_id}");
+                $innerEspecial = $request->input("inners_especiales.{$producto_id}");
+                
+                // Lo guardamos estructurado para la tabla pivote
+                $syncData[$producto_id] = [
+                    'precio_especial' => $precioEspecial,
+                    'inner_especial' => $innerEspecial
+                ];
+            }
+            $registro->productosEspeciales()->sync($syncData);
+        } else {
+            $registro->productosEspeciales()->detach(); 
+        }
 
         return redirect()->route('usuarios.index')->with('mensaje', 'Registro '.$registro->name. '  actualizado correctamente');
     }
