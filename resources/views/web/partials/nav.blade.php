@@ -50,17 +50,28 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-white" id="navbarDropdownUser" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             {{ Auth::user()->name }}
-                            {{-- Icono según rol (Opcional) --}}
-                            @role('admin')
+                            {{-- Icono inteligente --}}
+                            @if(auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin']))
                                 <i class="fas fa-user-shield ms-1 text-warning" title="Administrador"></i>
-                            @endrole
-                            @role('agente-ventas')
-                                <i class="fas fa-briefcase ms-1 text-info" title="Agente de Ventas"></i>
-                            @endrole
+                            @else
+                                <i class="fas fa-user-tie ms-1 text-info" title="Usuario"></i>
+                            @endif
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
-                            <li><a class="dropdown-item" href="{{ route('dashboard') }}"><i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard</a></li>
+                            
+                            {{-- Solo mostrar enlace a Dashboard a quienes deben verlo --}}
+                            @if(auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin', 'agente-ventas']))
+                                <li><a class="dropdown-item" href="{{ route('dashboard') }}"><i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard</a></li>
+                            @else
+                                {{-- Si es Almacén o alguien sin permisos, lo mandamos a Inventarios --}}
+                                <li><a class="dropdown-item" href="{{ route('inventarios.index') }}"><i class="fas fa-boxes fa-fw me-2"></i> Ir a mi Panel</a></li>
+                            @endif
+                            
+                            {{-- Solo agentes, admins y super-admins deben ver "Mis Pedidos" --}}
+                            @if(auth()->user()->can('pedido-list'))
                             <li><a class="dropdown-item" href="{{ route('perfil.pedidos') }}"><i class="fas fa-box fa-fw me-2"></i> Mis Pedidos</a></li>
+                            @endif
+                            
                             <li><a class="dropdown-item" href="{{ route('perfil.edit') }}"><i class="fas fa-user-circle fa-fw me-2"></i> Mi Perfil</a></li>
                             <li><hr class="dropdown-divider" /></li>
                             <li>

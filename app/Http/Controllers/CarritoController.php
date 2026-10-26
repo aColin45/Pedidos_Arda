@@ -86,7 +86,7 @@ class CarritoController extends Controller
         $cantidad = $request->cantidad;
         
         // --- INICIO CAMBIO: Validar Inner SOLO si NO es Admin ---
-        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
+        if (!auth()->check() || !auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($cantidad < $inner) {
                 return redirect()->back()->withErrors(['cantidad' => 'La cantidad mínima es ' . $inner . '.']);
             }
@@ -194,7 +194,7 @@ class CarritoController extends Controller
         $clientesParaSelector = collect();
 
         if ($agente) {
-            if ($agente->hasRole('admin')) {
+            if ($agente->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
                 $clientesParaSelector = Cliente::where('codigo', '!=', 'GENERAL')->where('activo', true)->orderBy('nombre')->get();
             } else {
                 $clientesParaSelector = $agente->clientes()->where('activo', true)->orderBy('nombre')->get();

@@ -19,13 +19,23 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $this->authorize('user-list'); 
-        $texto=$request->input('texto');
-        $registros=User::with('roles')
-                    ->where('name', 'like',"%{$texto}%")
-                    ->orWhere('email', 'like',"%{$texto}%")
-                    ->orderBy('id', 'desc')
-                    ->paginate(10);
-        return view('usuario.index', compact('registros','texto'));
+        $texto = $request->input('texto');
+        
+        $query = User::with('roles')
+                    ->where(function($q) use ($texto) {
+                        $q->where('name', 'like', "%{$texto}%")
+                          ->orWhere('email', 'like', "%{$texto}%");
+                    });
+
+        // BLINDAJE: Si el usuario actual NO es super-admin, ocultamos a todos los usuarios super-admin
+        if (!auth()->user()->hasRole('super-admin')) {
+            $query->whereDoesntHave('roles', function ($q) {
+                $q->where('name', 'super-admin');
+            });
+        }
+
+        $registros = $query->orderBy('id', 'desc')->paginate(10);
+        return view('usuario.index', compact('registros', 'texto'));
     }
 
     /**
@@ -34,13 +44,16 @@ class UserController extends Controller
     public function create()
     {
         $this->authorize('user-create'); 
-        $roles=Role::all();
         
-        // --- NUEVO: MANDAR LOS PRODUCTOS ESPECIALES A LA VISTA PARA USUARIOS NUEVOS ---
-        // Ahora mandamos TODOS los productos, para poder asignarles precios especiales a cualquiera
+        // BLINDAJE: Solo el super-admin puede ver la opción de asignar el rol super-admin
+        if (auth()->user()->hasRole('super-admin')) {
+            $roles = Role::all();
+        } else {
+            $roles = Role::where('name', '!=', 'super-admin')->get();
+        }
+        
         $productosCatalogo = Producto::orderBy('es_especial', 'desc')->orderBy('nombre')->get();
         
-        // Corregido: Se quitó $registro del compact porque en create() aún no existe
         return view('usuario.action', compact('roles', 'productosCatalogo')); 
     }
 
@@ -57,12 +70,18 @@ class UserController extends Controller
         $registro->activo=$request->input('activo');
         
         // --- NUEVO: GUARDAR METAS ---
-        if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('superadmin')) {
+        if (auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $registro->meta_mensual_base = $request->input('meta_mensual_base', 0);
             $registro->saldo_meta_acumulado = $request->input('saldo_meta_acumulado', 0);
         }
         
         $registro->save();
+
+        // BLINDAJE FINAL: Prevenir escalada de privilegios
+        $rolSolicitado = $request->input('role');
+        if ($rolSolicitado === 'super-admin' && !auth()->user()->hasRole('super-admin')) {
+            abort(403, 'Acceso Denegado. No puedes crear un Super Administrador.');
+        }
 
         $registro->assignRole($request->input('role'));
 
@@ -100,11 +119,20 @@ class UserController extends Controller
     public function edit($id)
     {
         $this->authorize('user-edit'); 
-        $roles=Role::all();
-        $registro=User::with('productosEspeciales')->findOrFail($id); 
+        $registro = User::with('productosEspeciales')->findOrFail($id); 
+
+        // BLINDAJE DE SEGURIDAD: Evitar que un admin intente editar la URL para editar al super-admin
+        if ($registro->hasRole('super-admin') && !auth()->user()->hasRole('super-admin')) {
+            abort(403, 'No tienes permiso para editar a un Super Administrador.');
+        }
         
-        // --- NUEVO: MANDAR LOS PRODUCTOS ESPECIALES A LA VISTA ---
-        // Ahora mandamos TODOS los productos, para poder asignarles precios especiales a cualquiera
+        // BLINDAJE: Filtrar roles disponibles
+        if (auth()->user()->hasRole('super-admin')) {
+            $roles = Role::all();
+        } else {
+            $roles = Role::where('name', '!=', 'super-admin')->get();
+        }
+        
         $productosCatalogo = Producto::orderBy('es_especial', 'desc')->orderBy('nombre')->get();
         
         return view('usuario.action', compact('registro','roles', 'productosCatalogo')); 
@@ -125,12 +153,18 @@ class UserController extends Controller
         $registro->activo=$request->input('activo');
         
         // --- NUEVO: GUARDAR METAS ---
-        if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('superadmin')) {
+        if (auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $registro->meta_mensual_base = $request->input('meta_mensual_base', 0);
             $registro->saldo_meta_acumulado = $request->input('saldo_meta_acumulado', 0);
         }
         
         $registro->save();
+
+        // BLINDAJE FINAL: Prevenir escalada de privilegios al actualizar
+        $rolSolicitado = $request->input('role');
+        if ($rolSolicitado === 'super-admin' && !auth()->user()->hasRole('super-admin')) {
+            abort(403, 'Acceso Denegado. No puedes asignar el rol de Super Administrador.');
+        }
 
         $registro->syncRoles([$request->input('role')]);
 
@@ -160,18 +194,28 @@ class UserController extends Controller
      * Remove the specified resource from storage.
      */
     public function destroy($id)
-    {
-        $this->authorize('user-delete');
-        $registro=User::findOrFail($id);
-        $registro->delete();
+  {
+      $this->authorize('user-delete');
+      $registro = User::findOrFail($id);
 
-        return redirect()->route('usuarios.index')->with('mensaje', $registro->name. ' eliminado correctamente.');
-    }
+      if ($registro->hasRole('super-admin') && !auth()->user()->hasRole('super-admin')) {
+          abort(403, 'No tienes permiso para eliminar a un Super Administrador.');
+      }
 
-    public function toggleStatus(User $usuario){
-        $this->authorize('user-activate'); 
-        $usuario->activo=!$usuario->activo;
-        $usuario->save();
-        return redirect()->route('usuarios.index')->with('mensaje', 'Estado del usuario actualizado correctamente.');
-    }
+      $registro->delete();
+
+      return redirect()->route('usuarios.index')->with('mensaje', $registro->name. ' eliminado correctamente.');
+  }
+
+  public function toggleStatus(User $usuario){
+      $this->authorize('user-activate'); 
+
+      if ($usuario->hasRole('super-admin') && !auth()->user()->hasRole('super-admin')) {
+          abort(403, 'No tienes permiso para desactivar a un Super Administrador.');
+      }
+
+      $usuario->activo = !$usuario->activo;
+      $usuario->save();
+      return redirect()->route('usuarios.index')->with('mensaje', 'Estado del usuario actualizado correctamente.');
+  }
 }

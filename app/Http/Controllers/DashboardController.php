@@ -17,7 +17,7 @@ class DashboardController extends Controller
 {
     public function exportarPedidosExcel(Request $request)
     {
-        if (!auth()->user()->hasRole('admin')) {
+        if (!auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             abort(403, 'Acción no autorizada.');
         }
 
@@ -31,20 +31,18 @@ class DashboardController extends Controller
         return Excel::download(new PedidoDetallesExport($month, $year, $texto), $fileName);
     }
     
+    // ========================================================
+    // 1. DASHBOARD OPERATIVO (Resumen del Día a Día)
+    // ========================================================
     public function index()
     {
         $user = Auth::user();
         $data = [];
 
-        $estadosQueSuman = [
-            'pendiente', 'aprobado', 'parcialmente_surtido', 'enviado', 'enviado_completo', 'completado', 'entregado', 'finalizado'
-        ];
+        $estadosQueSuman = ['pendiente', 'aprobado', 'parcialmente_surtido', 'enviado', 'enviado_completo', 'completado', 'entregado', 'finalizado'];
         $estadosIgnorados = ['cotizacion', 'Cotizacion', 'COTIZACION', 'rechazado', 'cancelado', 'anulado', 'No Procede'];
 
-        if ($user->hasRole('admin')) {
-            // ==========================
-            // KPIs PARA EL ADMIN
-            // ==========================
+        if ($user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $data['totalPedidos'] = Pedido::where('is_cotizacion', 0)->whereNotIn('estado', $estadosIgnorados)->count();
             $data['totalVentas'] = Pedido::where('is_cotizacion', 0)->whereIn('estado', $estadosQueSuman)->sum('total');
             $data['totalAgentes'] = User::role('agente-ventas')->count();
@@ -56,10 +54,37 @@ class DashboardController extends Controller
             $data['totalDevoluciones'] = Pedido::whereIn('estado', ['devolucion_pendiente', 'devolucion_aprobada'])->count();
             $data['pedidosPendientesAdmin'] = Pedido::where('is_cotizacion', 0)->where('estado', 'pendiente')->count();
             $data['ultimosPedidos'] = Pedido::with('agente', 'cliente')->where('is_cotizacion', 0)->whereNotIn('estado', $estadosIgnorados)->orderBy('created_at', 'desc')->take(5)->get();
+        } elseif ($user->hasRole('agente-ventas')) {
+            $data['misPedidos'] = Pedido::where('is_cotizacion', 0)->where('user_id', $user->id)->whereNotIn('estado', $estadosIgnorados)->count();
+            $data['misVentas'] = Pedido::where('is_cotizacion', 0)->where('user_id', $user->id)->whereIn('estado', $estadosQueSuman)->sum('total');
+            $data['misClientes'] = Cliente::where('user_id', $user->id)->count();
+            $data['misPedidosPendientes'] = Pedido::where('is_cotizacion', 0)->where('user_id', $user->id)->where('estado', 'pendiente')->count();
+            
+            $misCotizaciones = Pedido::where('is_cotizacion', 1)->where('user_id', $user->id)->whereIn('estado', ['cotizacion', 'Cotizacion'])->whereDate('fecha_vencimiento', '>=', Carbon::now()->toDateString());
+            $data['misCotizacionesMonto'] = (clone $misCotizaciones)->sum('total');
+            $data['misCotizacionesCount'] = (clone $misCotizaciones)->count();
+            $data['misDevoluciones'] = Pedido::where('user_id', $user->id)->whereIn('estado', ['devolucion_pendiente', 'devolucion_aprobada'])->count();
+            $data['ultimosPedidos'] = Pedido::with('cliente')->where('is_cotizacion', 0)->where('user_id', $user->id)->whereNotIn('estado', $estadosIgnorados)->orderBy('created_at', 'desc')->take(5)->get();
+        } else {
+            $data['ultimosPedidos'] = collect([]);
+        }
 
-            // ==========================
-            // LÓGICA DE METAS - ADMIN
-            // ==========================
+        return view('dashboard', $data);
+    }
+
+    // ========================================================
+    // 2. PANEL DE RENDIMIENTO Y METAS (War Room)
+    // ========================================================
+    public function rendimiento()
+    {
+        $user = Auth::user();
+        $data = [];
+
+        $estadosQueSuman = ['pendiente', 'aprobado', 'parcialmente_surtido', 'enviado', 'enviado_completo', 'completado', 'entregado', 'finalizado'];
+        $estadosIgnorados = ['cotizacion', 'Cotizacion', 'COTIZACION', 'rechazado', 'cancelado', 'anulado', 'No Procede'];
+
+        if ($user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            // Lógica de Metas Globales
             $agentesConMetas = User::where('meta_mensual_base', '>', 0)->get();
             $rendimientoAgentes = collect();
             $metaGlobalEmpresa = 0;
@@ -88,64 +113,55 @@ class DashboardController extends Controller
             $data['ventasGlobalesMesActual'] = $ventasGlobalesMesActual;
             $data['porcentajeGlobalEmpresa'] = $metaGlobalEmpresa > 0 ? ($ventasGlobalesMesActual / $metaGlobalEmpresa) * 100 : 0;
 
-            // === NUEVO: HISTORIAL MENSUAL PARA EL ADMIN (Toda la historia) ===
-            $ventasHistoricas = Pedido::select(
-                'users.name as agente_nombre',
-                DB::raw('DATE_FORMAT(pedidos.created_at, "%Y-%m") as mes_codigo'),
-                DB::raw('SUM(pedidos.total) as total_venta')
-            )
-            ->join('users', 'pedidos.user_id', '=', 'users.id')
-            ->where('pedidos.is_cotizacion', 0)
-            ->whereIn('pedidos.estado', $estadosQueSuman)
-            ->groupBy('users.id', 'users.name', 'mes_codigo')
-            ->orderBy('mes_codigo', 'desc')
-            ->get();
+            // Historial Mensual y Promedios
+            $ventasHistoricas = Pedido::select('users.name as agente_nombre', DB::raw('DATE_FORMAT(pedidos.created_at, "%Y-%m") as mes_codigo'), DB::raw('SUM(pedidos.total) as total_venta'))
+                ->join('users', 'pedidos.user_id', '=', 'users.id')
+                ->where('pedidos.is_cotizacion', 0)
+                ->whereIn('pedidos.estado', $estadosQueSuman)
+                ->groupBy('users.id', 'users.name', 'mes_codigo')
+                ->orderBy('mes_codigo', 'desc')
+                ->get();
 
             $data['ventasMensualesAdmin'] = $ventasHistoricas->groupBy('agente_nombre');
             
-            // Extraemos todos los meses únicos que existen en la base de datos (ordenados del más nuevo al más viejo)
             $mesesUnicos = $ventasHistoricas->pluck('mes_codigo')->unique()->sortDesc();
             $columnasMeses = [];
             foreach ($mesesUnicos as $codigo) {
-                $fecha = Carbon::createFromFormat('Y-m', $codigo);
-                $columnasMeses[$codigo] = ucfirst($fecha->translatedFormat('F Y'));
+                $columnasMeses[$codigo] = ucfirst(Carbon::createFromFormat('Y-m', $codigo)->translatedFormat('F Y'));
             }
             $data['columnasMeses'] = $columnasMeses;
 
             // ==========================
             // GRÁFICOS PARA EL ADMIN
             // ==========================
-            // Quitado el límite de 12 meses
-            $ventasGlobales = Pedido::select(DB::raw('SUM(total) as total_venta'), DB::raw('DATE_FORMAT(created_at, "%Y-%m") as mes_id'), DB::raw('DATE_FORMAT(created_at, "%b %Y") as mes_label'))->where('is_cotizacion', 0)->whereIn('estado', $estadosQueSuman)->groupBy('mes_id', 'mes_label')->orderBy('mes_id')->get();
+            // Gráfico Global de Tendencia
+            $ventasGlobales = Pedido::select(DB::raw('SUM(total) as total_venta'), DB::raw('DATE_FORMAT(created_at, "%Y-%m") as mes_id'), DB::raw('DATE_FORMAT(created_at, "%b %Y") as mes_label'))
+                ->where('is_cotizacion', 0)
+                ->whereIn('estado', $estadosQueSuman)
+                ->groupBy('mes_id', 'mes_label')
+                ->orderBy('mes_id')
+                ->get();
+                
             $data['chartVentasGlobales_labels_js'] = $ventasGlobales->pluck('mes_label')->toJson();
             $data['chartVentasGlobales_data_js'] = $ventasGlobales->pluck('total_venta')->toJson();
 
             $estadosString = "'" . implode("','", $estadosQueSuman) . "'";
-            $todosLosAgentes = Pedido::select('users.name as agente_nombre', DB::raw('COUNT(pedidos.id) as total_pedidos'), DB::raw('SUM(pedidos.total) as venta_bruta'), DB::raw("SUM(CASE WHEN pedidos.estado IN ($estadosString) THEN pedidos.total ELSE 0 END) as venta_neta"), DB::raw("SUM(CASE WHEN pedidos.estado NOT IN ($estadosString) THEN pedidos.total ELSE 0 END) as venta_perdida"))->join('users', 'pedidos.user_id', '=', 'users.id')->where('pedidos.is_cotizacion', 0)->whereNotIn('pedidos.estado', $estadosIgnorados)->groupBy('users.id', 'users.name')->havingRaw('venta_bruta > 0')->orderBy('venta_neta', 'desc')->get();
-            $data['todosLosAgentes'] = $todosLosAgentes;
+            $data['todosLosAgentes'] = Pedido::select('users.name as agente_nombre', DB::raw('COUNT(pedidos.id) as total_pedidos'), DB::raw('SUM(pedidos.total) as venta_bruta'), DB::raw("SUM(CASE WHEN pedidos.estado IN ($estadosString) THEN pedidos.total ELSE 0 END) as venta_neta"), DB::raw("SUM(CASE WHEN pedidos.estado NOT IN ($estadosString) THEN pedidos.total ELSE 0 END) as venta_perdida"))
+                ->join('users', 'pedidos.user_id', '=', 'users.id')
+                ->where('pedidos.is_cotizacion', 0)
+                ->whereNotIn('pedidos.estado', $estadosIgnorados)
+                ->groupBy('users.id', 'users.name')
+                ->havingRaw('venta_bruta > 0')
+                ->orderBy('venta_neta', 'desc')
+                ->get();
             
-            $topAgentes = $todosLosAgentes->take(10);
+            // Top 10 Agentes Históricos (Monto Monetario)
+            $topAgentes = $data['todosLosAgentes']->take(10);
             $data['chartTopAgentes_labels_js'] = $topAgentes->pluck('agente_nombre')->toJson();
             $data['chartTopAgentes_data_js'] = $topAgentes->pluck('venta_neta')->toJson();
 
         } elseif ($user->hasRole('agente-ventas')) {
-            // ==========================
-            // KPIs PARA EL AGENTE
-            // ==========================
-            $data['misPedidos'] = Pedido::where('is_cotizacion', 0)->where('user_id', $user->id)->whereNotIn('estado', $estadosIgnorados)->count();
-            $data['misVentas'] = Pedido::where('is_cotizacion', 0)->where('user_id', $user->id)->whereIn('estado', $estadosQueSuman)->sum('total');
-            $data['misClientes'] = Cliente::where('user_id', $user->id)->count();
-            $data['misPedidosPendientes'] = Pedido::where('is_cotizacion', 0)->where('user_id', $user->id)->where('estado', 'pendiente')->count();
-            
-            $misCotizaciones = Pedido::where('is_cotizacion', 1)->where('user_id', $user->id)->whereIn('estado', ['cotizacion', 'Cotizacion'])->whereDate('fecha_vencimiento', '>=', Carbon::now()->toDateString());
-            $data['misCotizacionesMonto'] = (clone $misCotizaciones)->sum('total');
-            $data['misCotizacionesCount'] = (clone $misCotizaciones)->count();
-            $data['misDevoluciones'] = Pedido::where('user_id', $user->id)->whereIn('estado', ['devolucion_pendiente', 'devolucion_aprobada'])->count();
-            $data['ultimosPedidos'] = Pedido::with('cliente')->where('is_cotizacion', 0)->where('user_id', $user->id)->whereNotIn('estado', $estadosIgnorados)->orderBy('created_at', 'desc')->take(5)->get();
-
-            // ==========================
-            // LÓGICA DE METAS - AGENTE
-            // ==========================
+            // Lógica de Metas del Agente
             $miMetaBase = floatval($user->meta_mensual_base);
             $miSaldoAcumulado = floatval($user->saldo_meta_acumulado);
             
@@ -166,22 +182,56 @@ class DashboardController extends Controller
             elseif($data['miPorcentajeMeta'] >= 75) $data['colorMeta'] = '#f6c23e'; // Amarillo
             else $data['colorMeta'] = '#e74a3b'; // Rojo
 
-            // ==========================
-            // GRÁFICOS PARA EL AGENTE
-            // ==========================
-            // Quitado el límite de 12 meses
+            // Mi Tendencia Histórica
             $misVentasActual = Pedido::select(DB::raw('SUM(total) as total_venta'), DB::raw('DATE_FORMAT(created_at, "%Y-%m") as mes_id'), DB::raw('DATE_FORMAT(created_at, "%b %Y") as mes_label'))->where('is_cotizacion', 0)->where('user_id', $user->id)->whereIn('estado', $estadosQueSuman)->groupBy('mes_id', 'mes_label')->orderBy('mes_id')->get();
             $data['chartMiTendencia_labels_js'] = $misVentasActual->pluck('mes_label')->toJson();
             $data['chartMiTendencia_data_actual_js'] = $misVentasActual->pluck('total_venta')->toJson();
-            
-            // Tabla Histórica para el Agente (Usando los datos de arriba)
             $data['misVentasTabla'] = $misVentasActual->sortByDesc('mes_id');
 
-            $misTopClientes = Pedido::select('clientes.nombre as cliente_nombre', DB::raw('SUM(pedidos.total) as total_venta'))->join('clientes', 'pedidos.cliente_id', '=', 'clientes.id')->where('pedidos.is_cotizacion', 0)->where('pedidos.user_id', $user->id)->whereIn('pedidos.estado', $estadosQueSuman)->whereMonth('pedidos.created_at', Carbon::now()->month)->groupBy('clientes.id', 'clientes.nombre')->orderBy('total_venta', 'desc')->limit(5)->get();
+            // Mis Mejores Clientes
+            $misTopClientes = Pedido::select('clientes.nombre as cliente_nombre', DB::raw('SUM(pedidos.total) as total_venta'))->join('clientes', 'pedidos.cliente_id', '=', 'clientes.id')->where('pedidos.is_cotizacion', 0)->where('pedidos.user_id', $user->id)->whereIn('pedidos.estado', $estadosQueSuman)->whereMonth('pedidos.created_at', Carbon::now()->month)->whereYear('pedidos.created_at', Carbon::now()->year)->groupBy('clientes.id', 'clientes.nombre')->orderBy('total_venta', 'desc')->limit(5)->get();
             $data['chartMisClientes_labels_js'] = $misTopClientes->pluck('cliente_nombre')->toJson();
             $data['chartMisClientes_data_js'] = $misTopClientes->pluck('total_venta')->toJson();
+            
+            // NUEVA GRÁFICA: Ranking Global de Agentes (Por Porcentaje)
+            $rankingEquipo = Pedido::select('users.id as agente_id', 'users.name as agente_nombre', DB::raw("SUM(pedidos.total) as total_vendido"))
+                ->join('users', 'pedidos.user_id', '=', 'users.id')
+                ->where('pedidos.is_cotizacion', 0)
+                ->whereIn('pedidos.estado', $estadosQueSuman)
+                ->whereMonth('pedidos.created_at', Carbon::now()->month)
+                ->whereYear('pedidos.created_at', Carbon::now()->year)
+                ->groupBy('users.id', 'users.name')
+                ->havingRaw('total_vendido > 0')
+                ->orderBy('total_vendido', 'desc')
+                ->get();
+            
+            $totalVentaEmpresa = $rankingEquipo->sum('total_vendido');
+            $labelsEquipo = [];
+            $dataEquipo = [];
+            $coloresEquipo = [];
+            $miLugar = 0;
+
+            foreach($rankingEquipo as $index => $ag) {
+                $labelsEquipo[] = explode(' ', trim($ag->agente_nombre))[0];
+                
+                // Calculamos el % de aportación
+                $pct = $totalVentaEmpresa > 0 ? ($ag->total_vendido / $totalVentaEmpresa) * 100 : 0;
+                $dataEquipo[] = round($pct, 1);
+                
+                if ($ag->agente_id == $user->id) {
+                    $coloresEquipo[] = '#f6c23e'; // Dorado brillante para mí
+                    $miLugar = $index + 1;
+                } else {
+                    $coloresEquipo[] = '#858796'; // Gris para los demás
+                }
+            }
+
+            $data['miLugarRanking'] = $miLugar;
+            $data['chartRanking_labels_js'] = json_encode($labelsEquipo);
+            $data['chartRanking_data_js'] = json_encode($dataEquipo);
+            $data['chartRanking_colors_js'] = json_encode($coloresEquipo);
         }
 
-        return view('dashboard', $data);
+        return view('rendimiento', $data);
     }
 }

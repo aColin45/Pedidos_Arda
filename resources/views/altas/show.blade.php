@@ -139,9 +139,9 @@
                             <div class="alert alert-info small mb-0"><i class="fas fa-clock mr-1"></i> El expediente está siendo auditado por Administración.</div>
                         @endif
 
-                        {{-- BOTÓN RECHAZAR TODA EL ALTA (SOLO ADMIN) --}}
-                        @php $isAdmin = auth()->user()->hasRole('admin') || auth()->user()->hasRole('superadmin'); @endphp
-                        @if($isAdmin && !in_array($alta->estado_alta, ['completado', 'cancelado']))
+                        {{-- BOTÓN RECHAZAR TODA EL ALTA (QUIEN TENGA PERMISO DE EVALUAR) --}}
+                        @can('alta-evaluate')
+                        @if(!in_array($alta->estado_alta, ['completado', 'cancelado']))
                             <hr class="mt-4 mb-3">
                             <button type="button" class="btn btn-outline-danger btn-sm btn-block rounded-pill font-weight-bold" data-bs-toggle="modal" data-bs-target="#modalCancelarAlta">
                                 <i class="fas fa-ban mr-1"></i> Rechazar/Cancelar Alta Completa
@@ -170,6 +170,7 @@
                                 </div>
                             </div>
                         @endif
+                        @endcan
                     </div>
 
                     {{-- LÍNEA DE TIEMPO (HISTORIAL) --}}
@@ -280,8 +281,8 @@
                                     
                                     <div class="text-end" style="width: 50%;">
                                         
-                                        {{-- ====== VISTA PARA ADMINISTRADOR ====== --}}
-                                        @if($isAdmin && $alta->estado_alta != 'borrador' && $alta->estado_alta != 'cancelado')
+                                        {{-- ====== VISTA PARA ADMINISTRADOR / EVALUADOR ====== --}}
+                                        @if(auth()->user()->can('alta-evaluate') && $alta->estado_alta != 'borrador' && $alta->estado_alta != 'cancelado')
                                             
                                             @if($estadoDoc == 'pendiente')
                                                 <div class="d-flex justify-content-end align-items-center">
@@ -423,7 +424,8 @@
                                             </td>
                                             <td class="text-center pr-4">
                                                 {{-- ACCIONES PARA EL ADMINISTRADOR (EVALUAR) --}}
-                                                @if((auth()->user()->hasRole('admin') || auth()->user()->hasRole('superadmin')) && in_array($alta->estado_alta, ['en_revision', 'rechazado']))
+                                                @can('alta-evaluate')
+                                                @if(in_array($alta->estado_alta, ['en_revision', 'rechazado']))
                                                     @if($ref->estado_referencia == 'pendiente')
                                                         <div class="d-flex justify-content-center gap-2">
                                                             {{-- Botón Aprobar --}}
@@ -440,9 +442,10 @@
                                                         <small class="text-muted"><i class="fas fa-lock mr-1"></i> Auditado</small>
                                                     @endif
                                                 @endif
+                                                @endcan
 
                                                 {{-- ACCIONES PARA EL AGENTE (CORREGIR RECHAZADA) --}}
-                                                @if($ref->estado_referencia == 'rechazado' && ($alta->user_id == auth()->id() || $isAdmin) && in_array($alta->estado_alta, ['borrador', 'rechazado', 'en_revision']))
+                                                @if($ref->estado_referencia == 'rechazado' && ($alta->user_id == auth()->id() || auth()->user()->can('alta-evaluate')) && in_array($alta->estado_alta, ['borrador', 'rechazado', 'en_revision']))
                                                     <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-3 shadow-sm font-weight-bold" data-bs-toggle="modal" data-bs-target="#modal-corregir-ref-{{ $ref->id }}">
                                                         <i class="fas fa-edit mr-1"></i> Editar
                                                     </button>
@@ -455,7 +458,7 @@
                                         </tr>
 
                                         {{-- PANEL DESPLEGABLE INLINE PARA INGRESO DE MOTIVO DE RECHAZO (ADMIN) --}}
-                                        @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('superadmin'))
+                                        @can('alta-evaluate')
                                             <tr class="collapse bg-light" id="panel-rechazo-ref-{{ $ref->id }}">
                                                 <td colspan="5" class="px-4 py-3 border-bottom shadow-inner">
                                                     <form action="{{ route('altas.evaluar_ref', [$alta->id, $ref->id]) }}" method="POST">
@@ -473,7 +476,7 @@
                                                     </form>
                                                 </td>
                                             </tr>
-                                        @endif
+                                        @endcan
 
                                         {{-- CUADRO DE NOTIFICACIÓN DE MOTIVO SI YA ESTÁ RECHAZADA (PARA AMBOS ROLES) --}}
                                         @if($ref->estado_referencia == 'rechazado' && $ref->motivo_rechazo)
@@ -501,7 +504,7 @@
         </div>
 
         {{-- CONVERSIÓN A CLIENTE REAL / RESUMEN FINAL --}}
-        @if(($alta->estado_alta == 'aprobado' && $isAdmin) || $alta->estado_alta == 'completado')
+        @if(($alta->estado_alta == 'aprobado' && auth()->user()->can('alta-evaluate')) || $alta->estado_alta == 'completado')
         <div class="row mt-2 mb-5">
             <div class="col-12">
                 <div class="card shadow border-0" style="border-radius: 12px; border-left: 5px solid #1cc88a;">
@@ -511,7 +514,7 @@
                     <div class="card-body bg-light" style="border-radius: 0 0 12px 12px;">
                         
                         {{-- FORMULARIO DE APROBACIÓN (SOLO ADMIN SI AÚN NO SE COMPLETA) --}}
-                        @if($alta->estado_alta == 'aprobado' && $isAdmin)
+                        @if($alta->estado_alta == 'aprobado' && auth()->user()->can('alta-evaluate'))
                             <p class="small text-muted mb-3">Todos los documentos obligatorios han sido auditados correctamente. Ingrese las condiciones comerciales para registrar oficialmente a este cliente en el sistema.</p>
                             
                             <form action="{{ route('altas.convertir', $alta->id) }}" method="POST" class="form-confirmar"
@@ -604,7 +607,7 @@
 
 {{-- MODALES DINÁMICOS DE CORRECCIÓN DE REFERENCIAS COMERCIALES (SOLO PARA AGENTES) --}}
     @foreach($alta->referencias as $ref)
-        @if($ref->estado_referencia == 'rechazado' && ($alta->user_id == auth()->id() || $isAdmin))
+        @if($ref->estado_referencia == 'rechazado' && ($alta->user_id == auth()->id() || auth()->user()->can('alta-evaluate')))
             <div class="modal fade" id="modal-corregir-ref-{{ $ref->id }}" {{-- data-bs-backdrop="static" --}} tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content border-0 shadow-lg" style="border-radius: 14px;">

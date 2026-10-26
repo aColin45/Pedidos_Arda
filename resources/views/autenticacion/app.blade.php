@@ -1,54 +1,52 @@
 <!doctype html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
- <head>
+<head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>@yield('titulo', 'ARDA - Autenticación')</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    {{-- =============================================== --}}
-    {{-- ||       FAVICON / ICONO DE LA PESTAÑA        || --}}
-    {{-- =============================================== --}}
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/img/favicons/apple-touch-icon.png') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('assets/img/favicons/favicon-32x32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('assets/img/favicons/favicon-16x16.png') }}">
-    <link rel="manifest" href="{{ asset('assets/img/favicons/site.webmanifest') }}">
-    {{-- <link rel="mask-icon" href="{{ asset('assets/img/favicons/safari-pinned-tab.svg') }}" color="#5bbad5"> --}}
     <link rel="shortcut icon" href="{{ asset('assets/img/favicons/favicon.ico') }}">
-    <meta name="msapplication-TileColor" content="#ffffff">
-    {{-- <meta name="msapplication-config" content="{{ asset('assets/img/favicons/browserconfig.xml') }}"> --}}
     <meta name="theme-color" content="#ffffff">
-    {{-- =============================================== --}}
-    <meta name="title" content="Sistema | https://arda.com.mx/" />
-    <meta name="author" content="GIArda" />
-    <meta name="description" content="Pedidos - ARDA" />
-    <meta name="keywords" content="Sistema, GIArda" />
-    <link
-        rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css"
-        integrity="sha256-tXJfXfp6Ewt1ilPzLDtQnJV4hclT9XuaZUKyUvmyr+Q="
-        crossorigin="anonymous"
-    />
-    {{-- OverlayScrollbars no es necesario para páginas de login simples --}}
-    {{-- <link
-        rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/styles/overlayscrollbars.min.css"
-        integrity="sha256-tZHrRjVqNSRyWg2wbppGnT833E/Ys0DHWGwT04GiqQg="
-        crossorigin="anonymous"
-    /> --}}
-    <link
-        rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-        integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI="
-        crossorigin="anonymous"
-    />
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> 
     <link rel="stylesheet" href="{{asset('css/adminlte.css')}}" />
-    {{-- Añadir custom.css si tienes estilos específicos para login --}}
-    {{-- <link rel="stylesheet" href="{{asset('css/custom.css')}}" /> --}}
-    @stack('estilos') {{-- Para estilos específicos de login/register/reset --}}
- </head>
+    
+    <style>
+        /* FONDO ELEGANTE Y TARJETAS MODERNAS */
+        body.login-page {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .login-box {
+            width: 450px;
+            max-width: 90%;
+        }
+        .auth-card {
+            border-radius: 1.2rem;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1) !important;
+            border: none !important;
+            overflow: hidden;
+        }
+        .btn-auth {
+            border-radius: 50rem;
+            padding: 0.6rem 1.5rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+        }
+        .btn-auth:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+    </style>
+    @stack('estilos')
+</head>
+
  {{-- Clases para centrar el contenido en páginas de autenticación --}}
- <body class="login-page bg-body-secondary">
+ <body class="login-page">
     <div class="login-box">
-        {{-- Aquí se inyectará el contenido de login.blade, registro.blade, etc. --}}
         @yield('contenido')
     </div>
     <script

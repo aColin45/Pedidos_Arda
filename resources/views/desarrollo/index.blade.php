@@ -45,9 +45,9 @@
                             <tr>
                                 <th class="border-0 pl-3">ID</th>
                                 <th class="border-0">Fecha</th>
-                                @role('admin|superadmin')
+                                @can('desarrollo-delete')
                                 <th class="border-0">Agente</th>
-                                @endrole
+                                @endcan
                                 <th class="border-0">Tipo de Solicitud</th>
                                 <th class="border-0" style="max-width: 250px;">Descripción General</th>
                                 <th class="border-0 text-center">Estatus</th>
@@ -63,9 +63,9 @@
                                     <div class="font-weight-bold text-dark">{{ $reg->created_at->format('d/m/Y') }}</div>
                                 </td>
 
-                                @role('admin|superadmin')
+                                @can('desarrollo-delete')
                                 <td><div class="text-dark font-weight-bold"><i class="fas fa-user-circle text-gray-400 mr-1"></i> {{ $reg->agente->name ?? 'N/A' }}</div></td>
-                                @endrole
+                                @endcan
 
                                 <td>
                                     @if(str_contains(strtolower($reg->tipo_accion), 'nuevo'))
@@ -93,11 +93,11 @@
 
                                 <td class="text-center">
                                     {{-- Botón Modal de Estatus (Solo Admin) --}}
-                                    @role('admin|superadmin')
+                                    @can('desarrollo-delete')
                                     <button type="button" class="btn btn-sm btn-warning shadow-sm text-dark font-weight-bold" data-bs-toggle="modal" data-bs-target="#modalEstatus-{{ $reg->id }}" title="Evaluar Solicitud">
                                         <i class="fas fa-clipboard-check"></i>
                                     </button>
-                                    @endrole
+                                    @endcan
 
                                     {{-- Botón PDF Individual --}}
                                     <a href="{{ route('desarrollos.pdf', $reg->id) }}" target="_blank" class="btn btn-sm btn-danger shadow-sm" title="Descargar Ficha PDF">
@@ -108,19 +108,19 @@
                                         <i class="fas fa-edit"></i>
                                     </a>
 
-                                    @role('admin|superadmin')
+                                    @can('desarrollo-delete')
                                     <form action="{{ route('desarrollos.destroy', $reg->id) }}" method="POST" class="d-inline form-confirmar"
                                           data-title="¿Eliminar Solicitud?" data-text="Se borrará permanentemente." data-icon="warning" data-color="#dc3545" data-btn-text="Sí, eliminar">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger shadow-sm" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
                                     </form>
-                                    @endrole
+                                    @endcan
                                 </td>
                             </tr>
 
                             {{-- MODAL EVALUACIÓN DE ESTATUS (Admin) --}}
-                            @role('admin|superadmin')
+                            @can('desarrollo-delete')
                             <div class="modal fade" id="modalEstatus-{{ $reg->id }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content">
@@ -147,10 +147,12 @@
                                     </div>
                                 </div>
                             </div>
-                            @endrole
+                            @endcan
 
                             @empty
-                            <tr><td colspan="{{ auth()->user()->hasRole('admin') ? '7' : '6' }}" class="text-center py-4 text-muted"><i class="fas fa-inbox fa-2x mb-3 text-gray-300 d-block"></i> No hay solicitudes registradas.</td></tr>
+                            <tr>
+                                <td colspan="{{ auth()->user()->can('desarrollo-delete') ? '7' : '6' }}" class="text-center py-4 text-muted"><i class="fas fa-inbox fa-2x mb-3 text-gray-300 d-block"></i> No hay solicitudes registradas.</td>
+                            </tr>
                             @endforelse
                         </tbody>
                     </table>

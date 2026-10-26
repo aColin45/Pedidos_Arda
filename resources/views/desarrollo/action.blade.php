@@ -104,7 +104,7 @@
                             
                             <div class="mb-3">
                                 <label class="form-label font-weight-bold text-dark">Resolución de la Solicitud:</label>
-                                @role('admin|superadmin')
+                                @can('desarrollo-delete')
                                     <select name="estatus" class="form-select form-control font-weight-bold">
                                         @php $est = old('estatus', $registro->estatus ?? 'Pendiente / En Revisión'); @endphp
                                         <option value="Pendiente / En Revisión" {{ $est == 'Pendiente / En Revisión' ? 'selected' : '' }}>🟡 Pendiente / En Revisión</option>
@@ -122,7 +122,7 @@
                                         {{ $registro->estatus ?? 'Pendiente / En Revisión' }}
                                     </div>
                                     <small class="text-muted mt-2 d-block text-center">* Solo un administrador puede cambiar este estado.</small>
-                                @endrole
+                                @endcan
                             </div>
 
                         </div>

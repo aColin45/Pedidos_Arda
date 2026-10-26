@@ -48,9 +48,9 @@
                         <table class="table table-bordered">
                             <thead>
                                 <tr>
-                                    @role('admin')
+                                    @canany(['cliente-edit', 'cliente-delete'])
                                     <th style="width: 150px">Opciones</th>
-                                    @endrole
+                                    @endcanany
                                     <th>ID</th>
                                     <th>Nombre</th>
                                     
@@ -75,7 +75,7 @@
                             <tbody>
                                 @forelse($clientes as $cliente)
                                 <tr>
-                                    @role('admin')
+                                    @canany(['cliente-edit', 'cliente-delete'])
                                     {{-- Columna Opciones: Editar -> Eliminar -> Toggle --}}
                                     <td style="width: 150px;">
                                         <div class="d-inline-flex align-items-center">
@@ -123,7 +123,7 @@
 
                                         </div>
                                     </td>
-                                    @endrole
+                                    @endcanany
 
                                     <td>{{ $cliente->id }}</td>
                                     <td>{{ $cliente->nombre }}</td>
@@ -144,7 +144,7 @@
                                 @empty
                                 <tr>
                                     {{-- Determinar el colspan basado en si se muestra la columna Opciones --}}
-                                    <td colspan="{{ auth()->user()->hasRole('admin') ? 8 : 7 }}" class="text-center py-4">No hay clientes registrados que coincidan con la búsqueda.</td>
+                                    <td colspan="{{ auth()->user()->canany(['cliente-edit', 'cliente-delete']) ? 8 : 7 }}" class="text-center py-4">No hay clientes registrados que coincidan con la búsqueda.</td>
                                 </tr>
                                 @endforelse
                             </tbody>

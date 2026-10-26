@@ -19,34 +19,82 @@ class DevolucionController extends Controller
     {
         $user = Auth::user();
         $texto = $request->input('texto');
+        $estadoFiltro = $request->input('estado');     // Para las tarjetas
+        $agenteFiltro = $request->input('agente_id');  // Para el selector
         
         $query = Pedido::with(['cliente', 'agente'])
-            ->where('estado', 'like', 'devolucion_%')
-            ->orderBy('created_at', 'desc');
+            ->where('estado', 'like', 'devolucion_%');
 
         // SEGURIDAD: Si NO es admin, solo ve sus propios registros
-        if (!$user->hasRole('admin')) {
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $query->where('user_id', $user->id);
         }
 
+        // ==========================================
+        // APLICAR FILTROS INTERACTIVOS
+        // ==========================================
+        // 1. Filtro por Estado (Tarjetas)
+        if (!empty($estadoFiltro)) {
+            if ($estadoFiltro == 'canceladas_rechazadas') {
+                $query->whereIn('estado', ['devolucion_cancelada', 'devolucion_rechazada']);
+            } else {
+                $query->where('estado', $estadoFiltro);
+            }
+        }
+
+        // 2. Filtro por Agente
+        if (!empty($agenteFiltro) && Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $query->where('user_id', $agenteFiltro);
+        }
+
+        // 3. Buscador de Texto (Folio, Cliente, Agente)
         if (!empty($texto)) {
              $query->where(function($q) use ($texto) {
                  $q->where('id', $texto)
                    ->orWhereHas('cliente', function ($subQ) use ($texto) {
                        $subQ->where('nombre', 'like', "%{$texto}%")
                             ->orWhere('codigo', 'like', "%{$texto}%");
+                   })
+                   ->orWhereHas('agente', function($q2) use ($texto) {
+                       $q2->where('name', 'like', "%{$texto}%");
                    });
              });
         }
 
-        $registros = $query->paginate(10);
+        $registros = $query->orderBy('created_at', 'desc')->paginate(15);
         
+        // Extraemos los datos ocultos (Motivo y Factura) para la vista
         foreach ($registros as $pedido) {
             $pedido->motivo_extraido = $this->extraerDato($pedido->comentarios, 'MOTIVO');
             $pedido->factura_extraida = $this->extraerDato($pedido->comentarios, 'FACTURA');
         }
 
-        return view('devolucion.index', compact('registros', 'texto'));
+        // ==========================================
+        // CALCULAR KPIs PARA LAS 5 TARJETAS
+        // ==========================================
+        $baseQuery = Pedido::where('estado', 'like', 'devolucion_%');
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $baseQuery->where('user_id', Auth::id());
+        }
+
+        $kpis = [
+            'total' => (clone $baseQuery)->count(),
+            'pendientes' => (clone $baseQuery)->where('estado', 'devolucion_pendiente')->count(),
+            'en_proceso' => (clone $baseQuery)->where('estado', 'devolucion_aprobada')->count(), // "Aprobada" es En Proceso para Almacén
+            'finalizadas' => (clone $baseQuery)->where('estado', 'devolucion_finalizada')->count(),
+            'canceladas_rechazadas' => (clone $baseQuery)->whereIn('estado', ['devolucion_cancelada', 'devolucion_rechazada'])->count(),
+        ];
+
+        // ==========================================
+        // SELECTOR DE AGENTES DINÁMICO
+        // ==========================================
+        $agentes = [];
+        if (Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $agentesIds = Pedido::where('estado', 'like', 'devolucion_%')->select('user_id')->distinct()->pluck('user_id');
+            $agentes = \App\Models\User::whereIn('id', $agentesIds)->where('activo', 1)->get();
+        }
+
+        return view('devolucion.index', compact('registros', 'texto', 'estadoFiltro', 'agenteFiltro', 'kpis', 'agentes'));
     }
 
     // Formulario de creación (CON SEGURIDAD POR AGENTE)
@@ -61,7 +109,7 @@ class DevolucionController extends Controller
 
         // 2. REGLA DE SEGURIDAD:
         // Si NO es admin, forzamos que solo traiga los clientes de este usuario
-        if (!$user->hasRole('admin')) {
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $query->where('user_id', $user->id);
         }
 
@@ -212,12 +260,12 @@ class DevolucionController extends Controller
         $devolucion = Pedido::findOrFail($id);
 
         // Seguridad básica: Verificar propiedad si es agente
-        if (!$user->hasRole('admin') && $devolucion->user_id != $user->id) {
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin']) && $devolucion->user_id != $user->id) {
             abort(403, 'No autorizado.');
         }
 
         // LÓGICA DE PERMISOS
-        if ($user->hasRole('admin')) {
+        if ($user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             // El admin puede poner cualquier estado válido
             $estadosPermitidos = [
                 'devolucion_pendiente', 

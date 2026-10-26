@@ -11,7 +11,7 @@
                         <h3 class="font-weight-bold text-primary mb-0">
                             <i class="fas fa-poll-h mr-2"></i> Sondeo de Mercado: Reguladores de Gas
                         </h3>
-                        @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('superadmin'))
+                        @if(Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin']) || Auth::user()->hasRole('superadmin'))
                             <span class="badge badge-info p-2"><i class="fas fa-eye mr-1"></i> Modo Previsualización</span>
                         @endif
                     </div>

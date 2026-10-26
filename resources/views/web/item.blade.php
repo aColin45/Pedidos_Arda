@@ -80,7 +80,7 @@
 
                             @php
                                 $innerFinal = isset($innerEspecial) ? $innerEspecial : ($producto->inner ?? 1);
-                                $esAdmin = auth()->check() && auth()->user()->hasRole('admin');
+                                $esAdmin = auth()->check() && auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin']);
                                 $step = $esAdmin ? 1 : $innerFinal;
                                 $min  = $esAdmin ? 1 : $innerFinal;
                             @endphp

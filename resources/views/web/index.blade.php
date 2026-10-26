@@ -38,7 +38,7 @@
                 </div>
 
                 {{-- NUEVO: Botón Filtro "Mis Exclusivos" (col-md-3) --}}
-                @if(auth()->check() && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('superadmin') || auth()->user()->productosEspeciales->count() > 0))
+                @if(auth()->check() && (auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin']) || auth()->user()->hasRole('superadmin') || auth()->user()->productosEspeciales->count() > 0))
                 <div class="col-md-3 text-center text-md-end">
                     <div class="btn-group w-100 shadow-sm" role="group">
                         <input type="checkbox" class="btn-check" name="solo_exclusivos" id="btnExclusivos" value="1" onchange="this.form.submit()" {{ request('solo_exclusivos') == '1' ? 'checked' : '' }}>
@@ -136,7 +136,7 @@
                             <input type="hidden" name="producto_id" value="{{ $producto->id }}">
                             
                             @php
-                                $esAdmin = auth()->check() && auth()->user()->hasRole('admin');
+                                $esAdmin = auth()->check() && auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin']);
                                 // Aquí usamos $innerFinal para la validación matemática del input
                                 $step = $esAdmin ? 1 : $innerFinal;
                                 $min  = $esAdmin ? 1 : $innerFinal;

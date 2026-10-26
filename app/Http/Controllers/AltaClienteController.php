@@ -12,31 +12,79 @@ use App\Models\AltaReferencia;
 class AltaClienteController extends Controller
 {
     // Mostrar listado general de altas
-    public function index(Request $request){
-    $texto = $request->input('texto');
-    $user = auth()->user();
+    public function index(Request $request)
+    {
+        $texto = $request->input('texto');
+        $estatusFiltro = $request->input('estado');
+        $agenteFiltro = $request->input('agente_id');
+        $user = auth()->user();
 
-    $query = AltaCliente::with('agente')->orderBy('id', 'desc'); // Ajusta tu modelo
+        $query = AltaCliente::with('agente');
 
-    if (!$user->hasRole('admin')) {
-        $query->where('user_id', $user->id);
-    }
+        // Seguridad: Si NO es admin, solo ve sus propias altas
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $query->where('user_id', $user->id);
+        }
 
-    // APLICAR EL FILTRO DE BÚSQUEDA
-    if (!empty($texto)) {
-        $query->where(function($q) use ($texto) {
-            $q->where('id', 'like', "%{$texto}%") // Para el Folio
-              ->orWhere('razon_social', 'like', "%{$texto}%")
-              ->orWhere('rfc', 'like', "%{$texto}%")
-              // Eliminamos la línea de 'estado' para evitar el crash de SQL
-              ->orWhereHas('agente', function($q2) use ($texto) {
-                  $q2->where('name', 'like', "%{$texto}%");
-              });
-        });
-    }
+        // ==========================================
+        // APLICAR FILTROS INTERACTIVOS
+        // ==========================================
+        // 1. Filtro por Estado (Clic en las tarjetas)
+        if (!empty($estatusFiltro)) {
+            if ($estatusFiltro == 'pendientes_agente') {
+                $query->whereIn('estado_alta', ['borrador', 'rechazado']); // Rechazado aquí es "Con observaciones"
+            } elseif ($estatusFiltro == 'pendientes_admin') {
+                $query->where('estado_alta', 'en_revision');
+            } else {
+                $query->where('estado_alta', $estatusFiltro);
+            }
+        }
 
-    $altas = $query->paginate(10);
-    return view('altas.index', compact('altas', 'texto'));
+        // 2. Filtro por Agente (Solo admins)
+        if (!empty($agenteFiltro) && $user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $query->where('user_id', $agenteFiltro);
+        }
+
+        // 3. Buscador de Texto
+        if (!empty($texto)) {
+            $query->where(function($q) use ($texto) {
+                $q->where('id', 'like', "%{$texto}%")
+                  ->orWhere('razon_social', 'like', "%{$texto}%")
+                  ->orWhere('rfc', 'like', "%{$texto}%")
+                  ->orWhereHas('agente', function($q2) use ($texto) {
+                      $q2->where('name', 'like', "%{$texto}%");
+                  });
+            });
+        }
+
+        $altas = $query->orderBy('id', 'desc')->paginate(15);
+
+        // ==========================================
+        // CALCULAR KPIs PARA LAS 5 TARJETAS
+        // ==========================================
+        $baseQuery = AltaCliente::query();
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $baseQuery->where('user_id', $user->id);
+        }
+
+        $kpis = [
+            'total' => (clone $baseQuery)->count(),
+            'pendientes_agente' => (clone $baseQuery)->whereIn('estado_alta', ['borrador', 'rechazado'])->count(),
+            'pendientes_admin' => (clone $baseQuery)->where('estado_alta', 'en_revision')->count(),
+            'completados' => (clone $baseQuery)->where('estado_alta', 'completado')->count(),
+            'cancelados' => (clone $baseQuery)->where('estado_alta', 'cancelado')->count(),
+        ];
+
+        // ==========================================
+        // SELECTOR DE AGENTES (Solo usuarios que SÍ tienen altas)
+        // ==========================================
+        $agentes = [];
+        if ($user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $agentesConAltasIds = AltaCliente::select('user_id')->distinct()->pluck('user_id');
+            $agentes = \App\Models\User::whereIn('id', $agentesConAltasIds)->where('activo', 1)->get();
+        }
+
+        return view('altas.index', compact('altas', 'texto', 'estatusFiltro', 'agenteFiltro', 'kpis', 'agentes'));
     }
 
     // Mostrar el formulario en blanco para el agente
@@ -135,8 +183,8 @@ class AltaClienteController extends Controller
     {
         // Añadimos 'referencias' a la carga
         $alta = AltaCliente::with(['documentos', 'referencias'])->findOrFail($id);
-        
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($alta->user_id != Auth::id()) abort(403, 'Acceso no autorizado.');
         }
 

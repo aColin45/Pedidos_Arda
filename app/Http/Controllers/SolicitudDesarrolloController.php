@@ -16,7 +16,7 @@ class SolicitudDesarrolloController extends Controller
         $query = SolicitudDesarrollo::with('agente');
 
         // Seguridad: Si NO es admin, solo ve sus propias solicitudes
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $query->where('user_id', Auth::id());
         }
 
@@ -76,7 +76,7 @@ class SolicitudDesarrolloController extends Controller
     {
         $registro = SolicitudDesarrollo::findOrFail($id);
         
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($registro->user_id !== Auth::id()) abort(403, 'No tienes permiso para ver o editar esta solicitud.');
         }
 
@@ -88,7 +88,7 @@ class SolicitudDesarrolloController extends Controller
         $registro = SolicitudDesarrollo::findOrFail($id);
         $user = Auth::user();
 
-        if (!$user->hasRole('admin') && !$user->hasRole('superadmin')) {
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($registro->user_id !== $user->id) abort(403, 'No tienes permiso para actualizar esta solicitud.');
         }
 
@@ -111,7 +111,7 @@ class SolicitudDesarrolloController extends Controller
         $registro->cliente_referencia = $request->cliente_referencia;
 
         // Solo si es admin, guardamos el estatus
-        if ($user->hasRole('admin') || $user->hasRole('superadmin')) {
+        if ($user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($request->has('estatus')) {
                 $registro->estatus = $request->input('estatus');
             }
@@ -126,7 +126,7 @@ class SolicitudDesarrolloController extends Controller
     {
         $registro = SolicitudDesarrollo::findOrFail($id);
         
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
              abort(403, 'Solo el administrador puede eliminar estas solicitudes.');
         }
 
@@ -145,7 +145,7 @@ class SolicitudDesarrolloController extends Controller
     {
         $registro = \App\Models\SolicitudDesarrollo::findOrFail($id);
         
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             abort(403, 'Solo los administradores pueden cambiar el estatus de las solicitudes.');
         }
 
@@ -164,7 +164,7 @@ class SolicitudDesarrolloController extends Controller
     {
         $registro = \App\Models\SolicitudDesarrollo::with('agente')->findOrFail($id);
         
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($registro->user_id !== Auth::id()) abort(403, 'No tienes permiso para ver esto.');
         }
 

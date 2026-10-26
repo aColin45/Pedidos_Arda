@@ -82,7 +82,7 @@
 
                 <div class="row">
                     {{-- Campo de Asignación de Agente (SOLO PARA ADMIN) --}}
-                    @if(Auth::user()->hasRole('admin'))
+                    @if(Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin']))
                     <div class="col-md-6 mb-3">
                         <label for="user_id">Asignar Agente de Ventas</label>
                         <select name="user_id" class="form-select @error('user_id') is-invalid @enderror" required> 
@@ -123,7 +123,7 @@
                 {{-- ============================================================ --}}
                 {{-- NUEVO BLOQUE: CONDICIONES DE CRÉDITO Y PAGOS (SOLO ADMIN) --}}
                 {{-- ============================================================ --}}
-                @if(Auth::user()->hasRole('admin'))
+                @if(Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin']))
                 <div class="row mt-2 mb-3 pb-3 border-bottom">
                     <div class="col-12 mb-2">
                         <h6 class="text-success font-weight-bold"><i class="fas fa-money-check-alt mr-1"></i> Condiciones de Crédito y Pagos</h6>
@@ -150,7 +150,7 @@
 
                 <div class="row">
                     {{-- Campo Activo --}}
-                    @if(Auth::user()->hasRole('admin'))
+                    @if(Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin']))
                         <div class="col-md-6 mb-3">
                             <label for="activo">Estado del Cliente</label>
                             <select name="activo" class="form-select @error('activo') is-invalid @enderror" required>

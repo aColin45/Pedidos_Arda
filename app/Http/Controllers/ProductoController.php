@@ -29,7 +29,7 @@ class ProductoController extends Controller
         // =========================================================
         // CANDADO DE SEGURIDAD PARA EL PANEL DE ADMINISTRACIÓN
         // =========================================================
-        if (!auth()->user()->hasRole('admin') && !auth()->user()->hasRole('superadmin')) {
+        if (!auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $agenteId = auth()->id();
             
             // Si es un agente de ventas, solo carga los normales (0) + los especiales que tiene asignados

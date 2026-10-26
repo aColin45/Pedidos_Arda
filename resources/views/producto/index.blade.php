@@ -42,9 +42,9 @@
                                 <thead>
                                     <tr>
                                         {{-- Encabezado de Opciones solo para admin --}}
-                                        @role('admin')
+                                        @canany(['producto-edit', 'producto-delete'])
                                         <th style="width: 150px">Opciones</th>
-                                        @endrole
+                                        @endcanany
                                         <th style="width: 20px">ID</th>
                                         <th>Código</th>
                                         <th>Nombre</th>
@@ -56,7 +56,7 @@
                                 <tbody>
                                     @forelse($registros as $reg)
                                     <tr class="align-middle">
-                                        @role('admin')
+                                        @canany(['producto-edit', 'producto-delete'])
                                         <td>
                                             <div class="d-inline-flex">
                                                 @can('producto-edit')
@@ -83,7 +83,7 @@
                                                 @endcan
                                             </div>
                                         </td>
-                                        @endrole
+                                        @endcanany
 
                                         <td>{{$reg->id}}</td>
                                         <td>{{$reg->codigo}}</td>
@@ -137,11 +137,11 @@
                                         </td>
                                     </tr>
                                     @empty
-                                    @role('admin')
+                                    @canany(['producto-edit', 'producto-delete'])
                                         <tr><td colspan="7" class="text-center py-3">No hay productos registrados que coincidan con la búsqueda.</td></tr>
                                     @else
                                         <tr><td colspan="6" class="text-center py-3">No hay productos registrados que coincidan con la búsqueda.</td></tr>
-                                    @endrole
+                                    @endcanany
                                     @endforelse
                                 </tbody>
                             </table>

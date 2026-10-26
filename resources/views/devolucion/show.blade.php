@@ -233,15 +233,15 @@
                         </div>
                     @endif
 
-                    @if(Auth::user()->hasRole('admin'))
+                    @can('devolucion-edit')
                         <hr>
-                        {{-- 1. FORMULARIO ADMIN CON SWEETALERT2 --}}
+                        {{-- 1. FORMULARIO GESTIÓN DE ESTADO COMPLETO --}}
                         <form action="{{ route('devoluciones.updateStatus', $devolucion->id) }}" method="POST" class="form-confirmar"
-                              data-title="¿Actualizar Estado?" 
-                              data-text="Se actualizará el estado de esta devolución en el sistema." 
-                              data-icon="question" 
-                              data-color="#4e73df" 
-                              data-btn-text="Sí, actualizar">
+                            data-title="¿Actualizar Estado?" 
+                            data-text="Se actualizará el estado de esta devolución en el sistema." 
+                            data-icon="question" 
+                            data-color="#4e73df" 
+                            data-btn-text="Sí, actualizar">
                             @csrf
                             @method('PUT')
                             <div class="form-group">
@@ -262,20 +262,22 @@
                             </div>
                             <button type="submit" class="btn btn-primary btn-block shadow-sm">Actualizar Estado</button>
                         </form>
-                    @elseif($devolucion->user_id == Auth::id() && $devolucion->estado == 'devolucion_pendiente')
+                    @else
+                        @if($devolucion->user_id == Auth::id() && $devolucion->estado == 'devolucion_pendiente')
                         <hr>
-                        {{-- 2. FORMULARIO AGENTE CON SWEETALERT2 (Adiós al onsubmit viejo) --}}
+                        {{-- 2. FORMULARIO AGENTE (Solo cancelar su propia devolución pendiente) --}}
                         <form action="{{ route('devoluciones.updateStatus', $devolucion->id) }}" method="POST" class="form-confirmar"
-                              data-title="¿Cancelar Solicitud?" 
-                              data-text="Esta acción cancelará tu solicitud de devolución." 
-                              data-icon="warning" 
-                              data-color="#e74a3b" 
-                              data-btn-text="Sí, cancelar solicitud">
+                            data-title="¿Cancelar Solicitud?" 
+                            data-text="Esta acción cancelará tu solicitud de devolución." 
+                            data-icon="warning" 
+                            data-color="#e74a3b" 
+                            data-btn-text="Sí, cancelar solicitud">
                             @csrf @method('PUT')
                             <input type="hidden" name="nuevo_estado" value="devolucion_cancelada">
                             <button type="submit" class="btn btn-outline-danger btn-block">Cancelar Solicitud</button>
                         </form>
-                    @endif
+                        @endif
+                    @endcan
                 </div>
             </div>
 

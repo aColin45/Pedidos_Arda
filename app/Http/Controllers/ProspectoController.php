@@ -13,14 +13,30 @@ class ProspectoController extends Controller
     public function index(Request $request)
     {
         $texto = $request->input('texto');
-        $query = Prospecto::with('agente'); // Cargamos al agente relacionado
+        $estatusFiltro = $request->input('estatus');
+        $agenteFiltro = $request->input('agente_id');
+
+        $query = Prospecto::with('agente');
 
         // Seguridad: Si NO es admin, solo ve sus propios prospectos
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $query->where('user_id', Auth::id());
         }
 
-        // Buscador
+        // ==========================================
+        // APLICAR FILTROS
+        // ==========================================
+        // 1. Filtro por Estatus exacto (Clic en las tarjetas)
+        if (!empty($estatusFiltro)) {
+            $query->where('estatus', $estatusFiltro);
+        }
+
+        // 2. Filtro por Agente (Solo admins)
+        if (!empty($agenteFiltro) && Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $query->where('user_id', $agenteFiltro);
+        }
+
+        // 3. Buscador de Texto
         if (!empty($texto)) {
             $query->where(function($q) use ($texto) {
                 $q->where('razon_social', 'like', "%{$texto}%")
@@ -31,7 +47,35 @@ class ProspectoController extends Controller
         }
 
         $registros = $query->orderBy('id', 'desc')->paginate(15);
-        return view('prospecto.index', compact('registros', 'texto'));
+
+        // ==========================================
+        // CALCULAR KPIs PARA LAS 5 TARJETAS
+        // ==========================================
+        $baseQuery = Prospecto::query();
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $baseQuery->where('user_id', Auth::id());
+        }
+
+        $kpis = [
+            'total' => (clone $baseQuery)->count(),
+            'nuevos' => (clone $baseQuery)->whereIn('estatus', ['nuevo', 'nuevo prospecto'])->count(),
+            'en_seguimiento' => (clone $baseQuery)->whereIn('estatus', ['en_seguimiento', 'en seguimiento activo'])->count(),
+            'convertidos' => (clone $baseQuery)->where('estatus', 'convertido')->count(),
+            'descartados' => (clone $baseQuery)->where('estatus', 'descartado')->count(),
+        ];
+
+        // ==========================================
+        // SELECTOR DE AGENTES (Solo usuarios que SÍ tienen prospectos)
+        // ==========================================
+        $agentes = [];
+        if (Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            // Obtenemos solo los IDs de los usuarios que han registrado al menos 1 prospecto
+            $agentesConProspectosIds = Prospecto::select('user_id')->distinct()->pluck('user_id');
+            // Buscamos a esos usuarios en la BD
+            $agentes = \App\Models\User::whereIn('id', $agentesConProspectosIds)->where('activo', 1)->get();
+        }
+
+        return view('prospecto.index', compact('registros', 'texto', 'estatusFiltro', 'agenteFiltro', 'kpis', 'agentes'));
     }
 
     public function create()
@@ -80,7 +124,7 @@ class ProspectoController extends Controller
         $registro = Prospecto::findOrFail($id);
         
         // Evitar que un agente edite prospectos de otro agente
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($registro->user_id !== Auth::id()) {
                 abort(403, 'No tienes permiso para editar este prospecto.');
             }
@@ -93,7 +137,7 @@ class ProspectoController extends Controller
     {
         $registro = Prospecto::findOrFail($id);
 
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($registro->user_id !== Auth::id()) {
                 abort(403, 'No tienes permiso para actualizar este prospecto.');
             }
@@ -134,7 +178,7 @@ class ProspectoController extends Controller
     {
         $registro = Prospecto::findOrFail($id);
         
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
              abort(403, 'No tienes permiso para eliminar prospectos.');
         }
 
@@ -154,7 +198,7 @@ class ProspectoController extends Controller
         $registro = Prospecto::findOrFail($id);
         
         // Seguridad
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($registro->user_id !== Auth::id()) {
                 abort(403, 'No tienes permiso para modificar este prospecto.');
             }
@@ -186,7 +230,7 @@ class ProspectoController extends Controller
     {
         $registro = Prospecto::with('agente')->findOrFail($id);
         
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($registro->user_id !== Auth::id()) {
                 abort(403, 'No tienes permiso para ver este prospecto.');
             }
@@ -221,7 +265,7 @@ class ProspectoController extends Controller
     {
         $prospecto = Prospecto::findOrFail($id);
         
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             abort(403, 'Solo un administrador puede dar de alta clientes formales.');
         }
 
@@ -266,5 +310,73 @@ class ProspectoController extends Controller
         $prospecto->save();
 
         return redirect()->back()->with('mensaje', '¡Éxito! Cliente creado. (ID: ' . $cliente->id . ' | Código: ' . $cliente->codigo . ') Ya aparece en la Gestión de Clientes.');
+    }
+
+    // =======================================================
+    // Panel de Gráficas para Directivos (Módulo Prospectos)
+    // =======================================================
+    public function estadisticas()
+    {
+        // Solo administradores pueden ver los gráficos globales
+        $this->authorize('prospecto-delete'); 
+
+        // 1. Total de prospectos y desglose general por estatus
+        $totalProspectos = Prospecto::count();
+        $prospectosPorEstatus = Prospecto::selectRaw('estatus, COUNT(*) as cantidad')
+                                         ->groupBy('estatus')
+                                         ->pluck('cantidad', 'estatus')->toArray();
+
+        // 2. Gráfica 1: Ranking de Agentes (¿Quién trae más prospectos?)
+        $topAgentes = Prospecto::selectRaw('user_id, COUNT(*) as total')
+                               ->with('agente') // Traemos el nombre del vendedor
+                               ->groupBy('user_id')
+                               ->orderByDesc('total')
+                               ->take(10)
+                               ->get();
+
+        $labelsAgentes = [];
+        $dataAgentes = [];
+        foreach ($topAgentes as $item) {
+            // Si el agente fue borrado pero sus prospectos existen, mostramos 'Desconocido'
+            $labelsAgentes[] = $item->agente ? $item->agente->name : 'Desconocido';
+            $dataAgentes[] = $item->total;
+        }
+
+        // 3. Gráfica 2: Tasa de Conversión (¿Quién logra más ventas vs los que descarta?)
+        // Filtramos solo los que ya terminaron su ciclo (convertidos o descartados)
+        $conversionPorAgente = Prospecto::selectRaw('
+                user_id,
+                SUM(CASE WHEN estatus = "convertido" THEN 1 ELSE 0 END) as ganados,
+                SUM(CASE WHEN estatus = "descartado" THEN 1 ELSE 0 END) as perdidos
+            ')
+            ->whereIn('estatus', ['convertido', 'descartado'])
+            ->with('agente')
+            ->groupBy('user_id')
+            ->get();
+
+        $labelsConversion = [];
+        $dataGanados = [];
+        $dataPerdidos = [];
+        foreach ($conversionPorAgente as $item) {
+            $labelsConversion[] = $item->agente ? explode(' ', trim($item->agente->name))[0] : 'N/A'; // Solo el primer nombre para no amontonar la gráfica
+            $dataGanados[] = $item->ganados;
+            $dataPerdidos[] = $item->perdidos;
+        }
+
+        // 4. Gráfica 3: ¿De dónde vienen los prospectos? (Orígenes más efectivos)
+        $origenesData = Prospecto::selectRaw('origen_prospecto, COUNT(*) as cantidad')
+                                 ->groupBy('origen_prospecto')
+                                 ->orderByDesc('cantidad')
+                                 ->get();
+        
+        $labelsOrigenes = $origenesData->pluck('origen_prospecto')->toArray();
+        $dataOrigenes = $origenesData->pluck('cantidad')->toArray();
+
+        return view('prospecto.estadisticas', compact(
+            'totalProspectos', 'prospectosPorEstatus', 
+            'labelsAgentes', 'dataAgentes',
+            'labelsConversion', 'dataGanados', 'dataPerdidos',
+            'labelsOrigenes', 'dataOrigenes'
+        ));
     }
 }

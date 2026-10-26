@@ -27,7 +27,7 @@ class PedidoController extends Controller
                     ->where('is_cotizacion', 0) 
                     ->orderBy('id', 'desc');
 
-        if ($user->hasRole('admin')) {
+        if ($user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             // Admin ve todo
         } else {
             // Agentes ven solo lo suyo
@@ -58,7 +58,7 @@ class PedidoController extends Controller
 
         // --- CALCULAR PEDIDOS PENDIENTES PARA LA TARJETA ---
         $pendientesQuery = Pedido::where('is_cotizacion', 0)->where('estado', 'pendiente');
-        if (!$user->hasRole('admin')) {
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $pendientesQuery->where('user_id', $user->id);
         }
         $pendientesCount = $pendientesQuery->count();
@@ -145,7 +145,7 @@ class PedidoController extends Controller
         $cliente = Cliente::findOrFail($clienteId);
         $user = Auth::user();
 
-        if (!$user->hasRole('admin') && $cliente->codigo !== 'GENERAL' && $cliente->user_id != $user->id) {
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin']) && $cliente->codigo !== 'GENERAL' && $cliente->user_id != $user->id) {
              return redirect()->back()->with('error', 'El cliente seleccionado no le pertenece.');
         }
 
@@ -458,7 +458,7 @@ class PedidoController extends Controller
         $pedido = Pedido::with(['cliente', 'agente', 'detalles.producto'])->findOrFail($id);
         $user = Auth::user();
 
-        if (!$user->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
              if ($pedido->user_id != $user->id && $pedido->cliente->user_id != $user->id) {
                  abort(403, 'No tiene permiso para ver este documento.');
              }
@@ -573,7 +573,7 @@ class PedidoController extends Controller
         }
 
         // 2. Validar que sea el dueño del pedido o un administrador
-        if (!$user->hasRole('admin') && !$user->hasRole('superadmin')) {
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($pedido->user_id != $user->id) {
                 abort(403, 'No tienes permiso para editar este pedido.');
             }

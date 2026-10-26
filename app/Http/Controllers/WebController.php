@@ -15,7 +15,7 @@ class WebController extends Controller
         // =========================================================
         // LÓGICA DE PRODUCTOS ESPECIALES / EXCLUSIVOS
         // =========================================================
-        if (auth()->check() && !auth()->user()->hasRole('admin')) {
+        if (auth()->check() && !auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $agenteId = auth()->id();
             
             // Si es agente, ve los normales (0) + los especiales que le asignaron
@@ -110,24 +110,22 @@ class WebController extends Controller
      */
     public function selectClient()
     {
-        // 1. Verificar roles: solo Admin y Agente pueden acceder a esta vista.
-        if (!auth()->check() || (!auth()->user()->hasRole('agente-ventas') && !auth()->user()->hasRole('admin'))) {
+        // 1. Verificar roles: Admin, Super-Admin, Agente o quien tenga permiso de crear pedido
+        if (!auth()->check() || (!auth()->user()->hasAnyRole(['agente-ventas', 'admin', 'super-admin', 'superadmin']) && !auth()->user()->can('pedido-create-cliente'))) {
             abort(403, 'Acceso denegado. Esta función es solo para Agentes de Ventas y Administradores.');
         }
 
         $agenteId = auth()->id();
-        
-        // 2. Cargar clientes: El Admin ve todos, el Agente solo ve los suyos.
-        if (auth()->user()->hasRole('admin')) {
-            // Agregamos with('agente') para optimizar la consulta y enviar la info a la vista
+
+        // 2. Cargar clientes: El Admin/Super-Admin ve todos, el Agente solo ve los suyos.
+        if (auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $clientes = Cliente::with('agente')->where('activo', true)->orderBy('nombre')->get();
         } else {
-            // El agente solo ve los clientes donde user_id es su propio ID
             $clientes = Cliente::with('agente')
-                              ->where('user_id', $agenteId)
-                              ->where('activo', true)
-                              ->orderBy('nombre')
-                              ->get();
+                                ->where('user_id', $agenteId)
+                                ->where('activo', true)
+                                ->orderBy('nombre')
+                                ->get();
         }
 
         return view('web.select-client', compact('clientes'));
@@ -141,7 +139,7 @@ class WebController extends Controller
     {
         // 1. Verificar autorización (seguridad de URL): 
         // Solo Admin o el Agente asignado al cliente pueden iniciar el pedido.
-        if (!auth()->user()->hasRole('admin') && $cliente->user_id !== auth()->id()) {
+        if (!auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin']) && $cliente->user_id !== auth()->id()) {
             abort(403, 'No tienes permiso para tomar pedidos de este cliente.');
         }
         

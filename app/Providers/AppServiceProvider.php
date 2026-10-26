@@ -3,7 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Pagination\Paginator; // <--- 1. ¡ESTA LÍNEA ES OBLIGATORIA!
+use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -14,6 +15,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot()
     {
-        Paginator::useBootstrap(); // <--- 2. ESTA LÍNEA TAMBIÉN
+        Paginator::useBootstrap();
+
+        // 2. Pase VIP: El super-admin pasa automáticamente cualquier @can() o authorize()
+        Gate::before(function ($user, $ability) {
+            return $user->hasRole('super-admin') ? true : null;
+        });
     }
 }

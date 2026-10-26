@@ -52,8 +52,11 @@ Route::middleware(['auth'])->group(function () {
     // DASHBOARD Y PERFIL (Acceso Básico)
     // =================================================
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // NUEVO: RUTA PARA EL PANEL DE RENDIMIENTO
+    Route::get('rendimiento', [DashboardController::class, 'rendimiento'])->name('rendimiento');
+    
     Route::get('/dashboard/exportar-pedidos', [DashboardController::class, 'exportarPedidosExcel'])
-        ->name('dashboard.exportar.pedidos')->middleware('role:admin|superadmin'); 
+        ->name('dashboard.exportar.pedidos')->middleware('role:admin|super-admin'); 
 
     Route::post('logout', function(){
         Auth::logout();
@@ -175,6 +178,11 @@ Route::middleware(['auth'])->group(function () {
     
     Route::resource('prospectos', ProspectoController::class)->only(['destroy'])->middleware('can:prospecto-delete');
 
+    // === NUEVO: RUTA PARA GRÁFICAS DE DIRECTIVOS ===
+    Route::get('/prospectos/estadisticas', [ProspectoController::class, 'estadisticas'])
+        ->name('prospectos.estadisticas')
+        ->middleware('can:prospecto-delete');
+
     Route::middleware(['can:prospecto-list'])->group(function () {
         Route::get('prospectos-exportar', [ProspectoController::class, 'exportar'])->name('prospectos.exportar');
         Route::get('prospectos/{id}/pdf', [ProspectoController::class, 'exportarFichaPdf'])->name('prospectos.pdf');
@@ -229,11 +237,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/inventarios', [InventarioController::class, 'index'])->name('inventarios.index')->middleware('can:inventario-list');
 
     // =================================================
-    // RUTA TEMPORAL PARA LIMPIAR CACHÉ DE PERMISOS
+    // RUTA TEMPORAL PARA LIMPIAR CACHÉS (Permisos, Vistas, General)
     // =================================================
     Route::get('/limpiar-cache-permisos', function() {
         app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
-        return 'Caché de permisos limpiada. Ya puedes editar roles.';
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        return 'Cachés de permisos, vistas y sistema limpiadas con éxito. Ya puedes verificar los cambios.';
     });
 
 });

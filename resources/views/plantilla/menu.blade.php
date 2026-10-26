@@ -10,7 +10,8 @@
         <nav class="mt-2">
             <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu" data-accordion="false">
                 
-                {{-- 1. DASHBOARD (Suele ser público para todos los logueados) --}}
+                {{-- 1. DASHBOARD (Oculto para Almacén, solo visible para estos roles) --}}
+                @if(auth()->check() && auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin', 'agente-ventas']))
                 <li class="nav-item">
                     <a href="{{route('dashboard')}}" class="nav-link @if(request()->routeIs('dashboard')) active @endif" id="mnuDashboard">
                         <i class="nav-icon bi bi-speedometer"></i>
@@ -18,65 +19,74 @@
                     </a>
                 </li>
 
+                {{-- NUEVO: PANEL DE RENDIMIENTO --}}
+                <li class="nav-item">
+                    <a href="{{route('rendimiento')}}" class="nav-link @if(request()->routeIs('rendimiento')) active @endif">
+                        <i class="nav-icon fas fa-chart-line"></i>
+                        <p>Rendimiento y Metas</p>
+                    </a>
+                </li>
+                @endif
+
                 {{-- 2. PROSPECTOS --}}
-                @can('prospecto-list')
+                @if(auth()->check() && auth()->user()->can('prospecto-list'))
                 <li class="nav-item">
                     <a href="{{ route('prospectos.index') }}" class="nav-link @if(request()->routeIs('prospectos.*')) active @endif" id="navProspectos">
                         <i class="nav-icon fas fa-user-tag"></i>
                         <p>Prospectos</p>
                     </a>
                 </li>
-                @endcan
+                @endif
 
                 {{-- 2.1 BITÁCORA DE VISITAS --}}
-                @can('visita-list')
+                @if(auth()->check() && auth()->user()->can('visita-list'))
                 <li class="nav-item">
                     <a href="{{ route('visitas.index') }}" class="nav-link @if(request()->routeIs('visitas.*')) active @endif" id="navVisitas">
                         <i class="nav-icon fas fa-route"></i>
                         <p>Bitácora de Visitas</p>
                     </a>
                 </li>
-                @endcan
+                @endif
 
                 {{-- 3. ALTAS DE CLIENTES --}}
-                @can('alta-list')
+                @if(auth()->check() && auth()->user()->can('alta-list'))
                 <li class="nav-item">
                     <a class="nav-link @if(request()->routeIs('altas.*')) active @endif" href="{{ route('altas.index') }}">
                         <i class="nav-icon fas fa-user-plus"></i> 
                         <p>Altas de Clientes</p>
                     </a>
                 </li>
-                @endcan
+                @endif
 
                 {{-- 4. COTIZACIONES --}}
-                @can('cotizacion-list')
+                @if(auth()->check() && auth()->user()->can('cotizacion-list'))
                 <li class="nav-item">
                     <a class="nav-link @if(request()->routeIs('cotizaciones.*')) active @endif" href="{{ route('cotizaciones.index') }}">
                         <i class="nav-icon fas fa-file-invoice-dollar"></i> 
                         <p>Cotizaciones</p>
                     </a>
                 </li>
-                @endcan
+                @endif
                 
                 {{-- 5. PEDIDOS --}}
-                @can('pedido-list')
+                @if(auth()->check() && auth()->user()->can('pedido-list'))
                 <li class="nav-item">
                     <a href="{{route('perfil.pedidos')}}" class="nav-link @if(request()->routeIs('perfil.pedidos')) active @endif" id="mnuPedidos">
                         <i class="nav-icon bi bi-bag-fill"></i>
                         <p>Pedidos</p>
                     </a>
                 </li>
-                @endcan
+                @endif
 
                 {{-- 6. DEVOLUCIONES --}}
-                @can('devolucion-list')
+                @if(auth()->check() && auth()->user()->can('devolucion-list'))
                 <li class="nav-item {{ Request::is('devoluciones*') ? 'active' : '' }}">
                     <a class="nav-link" href="{{ route('devoluciones.index') }}">
                         <i class="fas fa-fw fa-undo-alt" style="margin-right: 8px;"></i>
                         <span>Devoluciones</span>
                     </a>
                 </li>
-                @endcan
+                @endif
 
                 {{-- ---------------------------------------------------- --}}
                 
@@ -84,39 +94,38 @@
                 @php
                     $isSeguridadActive = request()->routeIs('usuarios.*') || request()->routeIs('roles.*');
                 @endphp
-                @canany(['user-list', 'rol-list'])
+                @if(auth()->check() && auth()->user()->hasAnyPermission(['user-list', 'rol-list']))
                 <li class="nav-item @if($isSeguridadActive) menu-open @endif" id="mnuSeguridad">
                     <a href="#" class="nav-link @if($isSeguridadActive) active @endif">
                         <i class="nav-icon bi bi-shield-lock"></i> 
                         <p>Seguridad<i class="nav-arrow bi bi-chevron-right"></i></p>
                     </a>
                     <ul class="nav nav-treeview">
-                        @can('user-list')
+                        @if(auth()->user()->can('user-list'))
                         <li class="nav-item">
                             <a href="{{route('usuarios.index')}}" class="nav-link @if(request()->routeIs('usuarios.*')) active @endif" id="itemUsuario">
                                 <i class="nav-icon bi bi-circle"></i><p>Usuarios</p>
                             </a>
                         </li>
-                        @endcan
-                        @can('rol-list')
+                        @endif
+                        @if(auth()->user()->can('rol-list'))
                         <li class="nav-item">
                             <a href="{{route('roles.index')}}" class="nav-link @if(request()->routeIs('roles.*')) active @endif" id="itemRole">
                                 <i class="nav-icon bi bi-circle"></i><p>Roles</p>
                             </a>
                         </li>
-                        @endcan
+                        @endif
                     </ul>
                 </li>
-                @endcanany
+                @endif
 
                 {{-- ---------------------------------------------------- --}}
 
                 {{-- 8. GESTIÓN (Clientes, Productos, Inventarios y Desarrollos) --}}
                 @php
-                    // Actualizamos la variable para que la carpeta se abra si estamos en cualquiera de los 4 módulos
                     $isGestionActive = request()->routeIs('productos.*') || request()->routeIs('clientes.*') || request()->routeIs('desarrollos.*') || request()->routeIs('inventarios.*');
                 @endphp
-                @canany(['producto-list', 'cliente-list', 'inventario-list', 'desarrollo-list'])
+                @if(auth()->check() && auth()->user()->hasAnyPermission(['producto-list', 'cliente-list', 'inventario-list', 'desarrollo-list']))
                 <li class="nav-item @if($isGestionActive) menu-open @endif" id="mnuGestion">
                     <a href="#" class="nav-link @if($isGestionActive) active @endif">
                         <i class="nav-icon bi bi-box-seam"></i>
@@ -125,47 +134,47 @@
                     <ul class="nav nav-treeview">
                         
                         {{-- GESTIÓN DE CLIENTES --}}
-                        @can('cliente-list')
+                        @if(auth()->user()->can('cliente-list'))
                         <li class="nav-item">
                             <a href="{{route('clientes.index')}}" class="nav-link @if(request()->routeIs('clientes.*')) active @endif" id="itemClientes">
                                 <i class="nav-icon bi bi-person-lines-fill"></i>
                                 <p>Clientes</p>
                             </a>
                         </li>
-                        @endcan
+                        @endif
 
                         {{-- GESTIÓN DE PRODUCTOS --}}
-                        @can('producto-list')
+                        @if(auth()->user()->can('producto-list'))
                         <li class="nav-item">
                             <a href="{{route('productos.index')}}" class="nav-link @if(request()->routeIs('productos.*')) active @endif" id="itemProducto">
                                 <i class="nav-icon bi bi-box"></i>
                                 <p>Productos</p>
                             </a>
                         </li>
-                        @endcan
+                        @endif
 
                         {{-- GESTIÓN DE INVENTARIOS --}}
-                        @can('inventario-list')
+                        @if(auth()->user()->can('inventario-list'))
                         <li class="nav-item">
                             <a href="{{route('inventarios.index')}}" class="nav-link @if(request()->routeIs('inventarios.*')) active @endif" id="itemInventario">
                                 <i class="nav-icon bi bi-boxes"></i>
                                 <p>Gestión de Inventarios</p>
                             </a>
                         </li>
-                        @endcan
+                        @endif
 
                         {{-- PRODUCTOS NUEVOS Y DESARROLLOS --}}
-                        @can('desarrollo-list')
+                        @if(auth()->user()->can('desarrollo-list'))
                         <li class="nav-item">
                             <a href="{{ route('desarrollos.index') }}" class="nav-link @if(request()->routeIs('desarrollos.*')) active @endif" id="navDesarrollos">
                                 <i class="nav-icon fas fa-lightbulb"></i>
                                 <p>Productos Nuevos / Desarrollos</p>
                             </a>
                         </li>
-                        @endcan
+                        @endif
                     </ul>
                 </li>
-                @endcanany
+                @endif
 
             </ul>
         </nav>

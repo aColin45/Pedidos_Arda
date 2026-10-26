@@ -4,7 +4,7 @@
 <section class="py-5">
     <div class="container px-4 px-lg-5 my-5">
         <h2 class="fw-bold mb-4">
-            @if(Auth::user()->hasRole('admin'))
+            @if(Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin']))
                 Selección de Cliente (ADMIN)
             @else
                 Selección de Cliente
@@ -52,7 +52,7 @@
                                 <i class="bi bi-cart-plus me-2"></i> Iniciar Pedido
                             </a>
                             
-                            @if(Auth::user()->hasRole('admin'))
+                            @if(Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin']))
                             <small class="d-block text-center mt-2 text-muted">Agente: {{ $cliente->agente->name ?? 'Sin asignar' }}</small>
                             @endif
                         </div>

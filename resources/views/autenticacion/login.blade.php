@@ -1,26 +1,25 @@
 @extends('autenticacion.app')
 @section('titulo', 'ARDA - Login')
 @section('contenido')
-<div class="card card-outline card-primary">
-    <div class="card-header text-center"> {{-- Centrar contenido del header --}}
-        <a href="/" class="link-dark text-center link-offset-2 link-opacity-100 link-opacity-50-hover d-block">
-            <img src="{{asset('assets/img/LOGO.png')}}" alt="Logo ARDA" style="max-height: 60px; margin-bottom: 5px;">
-            <h1 class="mb-0 h1"><b>Pedidos</b> ARDA</h1> {{-- Usar h1 para consistencia --}}
+<div class="card auth-card">
+    <div class="card-header text-center bg-white border-0 pt-4 pb-0">
+        <a href="/" class="text-decoration-none d-block mb-3">
+            <img src="{{asset('assets/img/LOGO.png')}}" alt="Logo ARDA" style="max-height: 70px;">
         </a>
+        <h3 class="font-weight-bold text-dark mb-0">Bienvenido de nuevo</h3>
+        <p class="text-muted small mt-1">Ingresa a tu cuenta para continuar</p>
     </div>
-    <div class="card-body login-card-body">
-        <p class="login-box-msg">Ingrese sus credenciales</p>
-
-        {{-- Mensajes de Error/Éxito --}}
+    
+    <div class="card-body px-4 px-md-5 pb-5 pt-3">
         @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            {{session('error')}}
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 10px;">
+            <i class="fas fa-exclamation-circle mr-2"></i>{{session('error')}}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         @endif
         @if(Session::has('mensaje'))
-        <div class="alert alert-info alert-dismissible fade show" role="alert">
-            {{Session::get('mensaje')}}
+        <div class="alert alert-info alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 10px;">
+            <i class="fas fa-info-circle mr-2"></i>{{Session::get('mensaje')}}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="close"></button>
         </div>
         @endif
@@ -28,67 +27,41 @@
         <form action="{{route('login.post')}}" method="post">
             @csrf
 
-            {{-- Campo Email --}}
-            <div class="input-group mb-3 has-validation"> {{-- Usar mb-3 para espaciado consistente y has-validation --}}
-                <div class="form-floating flex-grow-1"> {{-- flex-grow-1 para que ocupe espacio --}}
-                    {{-- Corregido: solo un atributo value --}}
-                    <input id="email" type="email" name="email" value="{{old('email')}}"
-                           class="form-control @error('email') is-invalid @enderror" placeholder="Email" required />
-                    <label for="email">Email</label>
-                </div>
-                <div class="input-group-text"><span class="bi bi-envelope"></span></div>
-                @error('email')
-                    {{-- Mensaje de error asociado al input group --}}
-                    <div class="invalid-feedback w-100">{{ $message }}</div>
-                @enderror
-            </div>
-
-            {{-- =============================================== --}}
-            {{-- ||       CONTRASEÑA CON OJO      || --}}
-            {{-- =============================================== --}}
-            {{-- Campo Password con Ojo --}}
-            <div class="input-group mb-3 has-validation">
+            <div class="input-group mb-3 has-validation shadow-sm" style="border-radius: 10px; overflow: hidden;">
                 <div class="form-floating flex-grow-1">
-                    {{-- Añadido ID 'password' --}}
+                    <input id="email" type="email" name="email" value="{{old('email')}}"
+                           class="form-control border-0 @error('email') is-invalid @enderror" placeholder="Email" required />
+                    <label for="email" class="text-muted"><i class="fas fa-envelope mr-2"></i> Correo Electrónico</label>
+                </div>
+            </div>
+            @error('email')
+                <div class="text-danger small mb-3 ml-2">{{ $message }}</div>
+            @enderror
+
+            <div class="input-group mb-3 has-validation shadow-sm" style="border-radius: 10px; overflow: hidden;">
+                <div class="form-floating flex-grow-1">
                     <input id="password" type="password" name="password"
-                           class="form-control @error('password') is-invalid @enderror" placeholder="Password" required />
-                    <label for="password">Password</label>
+                           class="form-control border-0 @error('password') is-invalid @enderror" placeholder="Password" required />
+                    <label for="password" class="text-muted"><i class="fas fa-lock mr-2"></i> Contraseña</label>
                 </div>
-                <div class="input-group-text">
-                    {{-- Icono del Ojo --}}
-                    <span class="bi bi-eye-slash" id="togglePassword" style="cursor: pointer;"></span>
-                </div>
-                @error('password')
-                     <div class="invalid-feedback w-100">{{ $message }}</div>
-                @enderror
-            </div>
-            {{-- =============================================== --}}
-
-
-            {{-- Enlace Recuperar Contraseña --}}
-            <div class="row mb-3">
-                <div class="col-12 text-end">
-                     {{-- Span innecesario --}}
-                    <a href="{{route('password.request')}}" class="text-primary fw-bold">¿Olvidaste tu password?</a>
+                <div class="input-group-text bg-white border-0">
+                    <span class="bi bi-eye-slash text-muted" id="togglePassword" style="cursor: pointer;"></span>
                 </div>
             </div>
+            @error('password')
+                <div class="text-danger small mb-3 ml-2">{{ $message }}</div>
+            @enderror
 
-            <div class="row">
-                <div class="col-12"> {{-- Ocupar todo el ancho para centrar mejor el botón --}}
-                    <div class="d-grid gap-2 col-4 mx-auto"> {{-- Botón más pequeño y centrado --}}
-                        <button type="submit" class="btn btn-primary">Acceder</button>
-                    </div>
-                </div>
+            <div class="text-end mb-4">
+                <a href="{{route('password.request')}}" class="text-primary small font-weight-bold text-decoration-none">¿Olvidaste tu contraseña?</a>
             </div>
-            </form>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-auth shadow-sm">
+                    <i class="fas fa-sign-in-alt mr-2"></i> Acceder al Sistema
+                </button>
+            </div>
+        </form>
     </div>
-    </div>
-
-{{-- Script para el ojo (Asegúrate que este script esté cargado en tu plantilla autenticacion.app) --}}
-{{-- Si no está, puedes añadirlo aquí con @push('scripts') --}}
-{{-- @push('scripts')
-<script>
-
-</script>
-@endpush --}}
+</div>
 @endsection

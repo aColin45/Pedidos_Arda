@@ -95,7 +95,7 @@
                             </form>
 
                             {{-- Botón Exportar (Mantenido intacto) --}}
-                            @role('admin')
+                            @hasanyrole('admin|super-admin|superadmin')
                             <div class="text-end mb-3">
                                 <a href="{{ route('dashboard.exportar.pedidos', [
                                             'month' => request('month'),
@@ -107,7 +107,7 @@
                                     <i class="fas fa-file-excel me-1"></i> Exportar Resultados a Excel
                                 </a>
                             </div>
-                            @endrole
+                            @endhasanyrole
                         </div>
 
                         @if(Session::has('mensaje'))
@@ -263,7 +263,7 @@
                                                 @php
                                                     $showParcial = in_array($estado, ['parcialmente_surtido', 'enviado_completo', 'entregado', 'finalizado']);
                                                     $showCompleta = in_array($estado, ['enviado_completo', 'entregado', 'finalizado']);
-                                                    $isAdmin = auth()->user()->hasRole('admin');
+                                                    $isAdmin = auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin']);
                                                 @endphp
 
                                                 @if($isAdmin)
@@ -311,7 +311,7 @@
                                             <td class="text-center">
                                                 {{-- BOTÓN DE EDITAR (Solo Pendientes o Rechazados) --}}
                                                 @if(in_array(strtolower($reg->estado), ['pendiente', 'rechazado']))
-                                                    @if(auth()->user()->hasRole('admin') || auth()->user()->id == $reg->user_id)
+                                                    @if(auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin']) || auth()->user()->id == $reg->user_id)
                                                         <a href="{{ route('pedidos.editar', $reg->id) }}" class="btn btn-sm btn-warning w-100 shadow-sm mb-2 text-dark fw-bold">
                                                             <i class="fas fa-edit"></i> Editar
                                                         </a>

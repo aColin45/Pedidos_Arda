@@ -21,7 +21,7 @@ class ClienteController extends Controller
 
         $query = Cliente::with('agente');
         
-        if (auth()->user()->hasRole('agente-ventas') && !auth()->user()->hasRole('admin')) {
+        if (!auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
              $query->where('user_id', auth()->id());
         }
 
@@ -57,7 +57,8 @@ class ClienteController extends Controller
     public function create()
     {
         // La nueva consulta (trae agentes y administradores):
-        $agentes = User::role(['agente-ventas', 'admin'])->get();
+        $rolesExistentes = \Spatie\Permission\Models\Role::whereIn('name', ['agente-ventas', 'admin', 'super-admin', 'superadmin'])->pluck('name')->toArray();
+        $agentes = User::role($rolesExistentes)->get();
         return view('cliente.action', compact('agentes'));
     }
 
@@ -104,7 +105,8 @@ class ClienteController extends Controller
         }
 
         // La nueva consulta (trae agentes y administradores):
-        $agentes = User::role(['agente-ventas', 'admin'])->get();
+        $rolesExistentes = \Spatie\Permission\Models\Role::whereIn('name', ['agente-ventas', 'admin', 'super-admin', 'superadmin'])->pluck('name')->toArray();
+        $agentes = User::role($rolesExistentes)->get();
         return view('cliente.action', compact('cliente', 'agentes'));
     }
 

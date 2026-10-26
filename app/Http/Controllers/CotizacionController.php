@@ -9,31 +9,52 @@ use Carbon\Carbon;
 
 class CotizacionController extends Controller
 {
-    public function index(Request $request) // <-- IMPORTANTE: Agregar Request $request
+    public function index(Request $request) 
     {
         $texto = $request->input('texto');
+        $estadoFiltro = $request->input('estado');     // Para las tarjetas
+        $agenteFiltro = $request->input('agente_id');  // Para el selector
 
-        // Traemos los registros que sean cotizaciones o que hayan sido marcados como No Procede/Cancelados
-        $query = Pedido::with(['cliente', 'agente'])
-                       ->where('is_cotizacion', 1);
-
-        // LÓGICA DE VISIBILIDAD BLINDADA (Historial permanente)
-        $query->where(function($q) {
-            // 1. Mostrar las activas que NO han vencido
-            $q->where(function($sub) {
-                $sub->whereIn('estado', ['cotizacion', 'Cotizacion'])
-                    ->where('fecha_vencimiento', '>=', Carbon::now()->toDateString());
-            })
-            // 2. Mostrar SIEMPRE el historial de las cerradas (sin importar la fecha)
-            ->orWhereIn('estado', ['cancelado', 'Cancelado', 'No Procede', 'caducada', 'Cerrada', 'Convertida a Pedido']);
-        });
+        $query = Pedido::with(['cliente', 'agente'])->where('is_cotizacion', 1);
 
         // Seguridad por roles: Agentes solo ven las suyas
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $query->where('user_id', Auth::id());
         }
-        
-        // --- NUEVO: APLICAR EL FILTRO DE BÚSQUEDA ---
+
+        // ==========================================
+        // APLICAR FILTROS INTERACTIVOS
+        // ==========================================
+        // 1. Filtro por Estado (Tarjetas)
+        if (!empty($estadoFiltro)) {
+            if ($estadoFiltro == 'activa') {
+                // Cotizaciones activas y no vencidas
+                $query->whereIn('estado', ['cotizacion', 'Cotizacion'])
+                      ->where('fecha_vencimiento', '>=', Carbon::now()->toDateString());
+            } elseif ($estadoFiltro == 'convertida') {
+                $query->whereIn('estado', ['Convertida a Pedido']);
+            } elseif ($estadoFiltro == 'rechazada') {
+                $query->whereIn('estado', ['No Procede', 'cancelado', 'Cancelado']);
+            } elseif ($estadoFiltro == 'caducada') {
+                $query->whereIn('estado', ['caducada']);
+            }
+        } else {
+            // Lógica original cuando no hay filtro seleccionado
+            $query->where(function($q) {
+                $q->where(function($sub) {
+                    $sub->whereIn('estado', ['cotizacion', 'Cotizacion'])
+                        ->where('fecha_vencimiento', '>=', Carbon::now()->toDateString());
+                })
+                ->orWhereIn('estado', ['cancelado', 'Cancelado', 'No Procede', 'caducada', 'Cerrada', 'Convertida a Pedido']);
+            });
+        }
+
+        // 2. Filtro por Agente
+        if (!empty($agenteFiltro) && Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $query->where('user_id', $agenteFiltro);
+        }
+
+        // 3. Búsqueda de texto
         if (!empty($texto)) {
             $query->where(function($q) use ($texto) {
                 $q->where('id', 'like', "%{$texto}%")
@@ -48,7 +69,33 @@ class CotizacionController extends Controller
         }
         
         $cotizaciones = $query->orderBy('id', 'desc')->paginate(15);
-        return view('cotizaciones.index', compact('cotizaciones', 'texto')); // <-- Retornar $texto
+
+        // ==========================================
+        // CALCULAR KPIs PARA LAS 5 TARJETAS
+        // ==========================================
+        $baseQuery = Pedido::where('is_cotizacion', 1);
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $baseQuery->where('user_id', Auth::id());
+        }
+
+        $kpis = [
+            'total' => (clone $baseQuery)->count(),
+            'activas' => (clone $baseQuery)->whereIn('estado', ['cotizacion', 'Cotizacion'])->where('fecha_vencimiento', '>=', Carbon::now()->toDateString())->count(),
+            'convertidas' => (clone $baseQuery)->where('estado', 'Convertida a Pedido')->count(),
+            'rechazadas' => (clone $baseQuery)->whereIn('estado', ['No Procede', 'cancelado', 'Cancelado'])->count(),
+            'caducadas' => (clone $baseQuery)->where('estado', 'caducada')->count(),
+        ];
+
+        // ==========================================
+        // SELECTOR DE AGENTES DINÁMICO
+        // ==========================================
+        $agentes = [];
+        if (Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $agentesIds = Pedido::where('is_cotizacion', 1)->select('user_id')->distinct()->pluck('user_id');
+            $agentes = \App\Models\User::whereIn('id', $agentesIds)->where('activo', 1)->get();
+        }
+
+        return view('cotizaciones.index', compact('cotizaciones', 'texto', 'estadoFiltro', 'agenteFiltro', 'kpis', 'agentes'));
     }
 
     // Carga los productos al carrito para editarlos
@@ -56,7 +103,7 @@ class CotizacionController extends Controller
     {
         $cotizacion = Pedido::with('detalles.producto')->findOrFail($id);
         
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($cotizacion->user_id != Auth::id()) {
                 abort(403, 'No tienes permiso para editar esta cotización.');
             }

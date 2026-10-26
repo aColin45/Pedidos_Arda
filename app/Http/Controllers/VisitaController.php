@@ -15,12 +15,30 @@ class VisitaController extends Controller
     public function index(Request $request)
     {
         $texto = $request->input('texto');
+        $resultadoFiltro = $request->input('resultado'); // Para filtrar por las tarjetas
+        $agenteFiltro = $request->input('agente_id');    // Para el selector de agentes
+
         $query = Visita::with(['agente', 'prospecto', 'cliente']); 
 
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        // Seguridad: Si NO es admin, solo ve sus propias visitas
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $query->where('user_id', Auth::id());
         }
 
+        // ==========================================
+        // APLICAR FILTROS INTERACTIVOS
+        // ==========================================
+        // 1. Filtro por Resultado (Clic en las tarjetas)
+        if (!empty($resultadoFiltro)) {
+            $query->where('resultado_visita', $resultadoFiltro);
+        }
+
+        // 2. Filtro por Agente (Solo admins)
+        if (!empty($agenteFiltro) && Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $query->where('user_id', $agenteFiltro);
+        }
+
+        // 3. Buscador de Texto (General)
         if (!empty($texto)) {
             $query->where(function($q) use ($texto) {
                 $q->where('objetivo_visita', 'like', "%{$texto}%")
@@ -35,13 +53,38 @@ class VisitaController extends Controller
         }
 
         $registros = $query->orderBy('fecha_visita', 'desc')->paginate(15);
-        return view('visita.index', compact('registros', 'texto'));
+
+        // ==========================================
+        // CALCULAR KPIs PARA LAS 4 TARJETAS
+        // ==========================================
+        $baseQuery = Visita::query();
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $baseQuery->where('user_id', Auth::id());
+        }
+
+        $kpis = [
+            'total' => (clone $baseQuery)->count(),
+            'ventas' => (clone $baseQuery)->where('resultado_visita', 'Venta / Pedido')->count(),
+            'cotizaciones' => (clone $baseQuery)->where('resultado_visita', 'Cotización')->count(),
+            'rechazos' => (clone $baseQuery)->where('resultado_visita', 'No interesado (Rechazo)')->count(),
+        ];
+
+        // ==========================================
+        // SELECTOR DE AGENTES (Solo usuarios que SÍ tienen visitas)
+        // ==========================================
+        $agentes = [];
+        if (Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
+            $agentesConVisitasIds = Visita::select('user_id')->distinct()->pluck('user_id');
+            $agentes = \App\Models\User::whereIn('id', $agentesConVisitasIds)->where('activo', 1)->get();
+        }
+
+        return view('visita.index', compact('registros', 'texto', 'resultadoFiltro', 'agenteFiltro', 'kpis', 'agentes'));
     }
 
     public function create()
     {
         $user = Auth::user();
-        if ($user->hasRole('admin') || $user->hasRole('superadmin')) {
+        if ($user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $prospectos = Prospecto::orderBy('razon_social')->get();
             $clientes = Cliente::orderBy('nombre')->get();
         } else {
@@ -107,7 +150,7 @@ class VisitaController extends Controller
         $registro = Visita::findOrFail($id);
         $user = Auth::user();
         
-        if (!$user->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($registro->user_id !== $user->id) abort(403, 'No tienes permiso.');
         }
 
@@ -124,7 +167,7 @@ class VisitaController extends Controller
         $registro->proximo_contacto = $registro->fecha_proximo_seguimiento;
         $registro->compromisos = $registro->acuerdos;
 
-        if ($user->hasRole('admin') || $user->hasRole('superadmin')) {
+        if ($user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             $prospectos = Prospecto::orderBy('razon_social')->get();
             $clientes = Cliente::orderBy('nombre')->get();
         } else {
@@ -139,7 +182,7 @@ class VisitaController extends Controller
         $registro = Visita::findOrFail($id);
         $user = Auth::user();
 
-        if (!$user->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!$user->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($registro->user_id !== $user->id) abort(403, 'No tienes permiso.');
         }
 
@@ -187,7 +230,7 @@ class VisitaController extends Controller
     public function destroy($id)
     {
         $registro = Visita::findOrFail($id);
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) abort(403);
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) abort(403);
         $registro->delete();
         return redirect()->route('visitas.index')->with('mensaje', 'Visita eliminada.');
     }
@@ -200,7 +243,7 @@ class VisitaController extends Controller
     public function exportarFichaPdf($id)
     {
         $registro = Visita::with(['agente', 'cliente', 'prospecto'])->findOrFail($id);
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('superadmin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin'])) {
             if ($registro->user_id !== Auth::id()) abort(403);
         }
 
