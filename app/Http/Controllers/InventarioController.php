@@ -9,6 +9,8 @@ use App\Models\RestriccionInventario;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\InventarioImport;
+use App\Models\HistorialInventario;
+use Illuminate\Support\Facades\Auth;
 
 class InventarioController extends Controller
 {
@@ -77,7 +79,24 @@ class InventarioController extends Controller
         // 8. Paginación
         $productos = $query->paginate(20)->withQueryString();
 
-        return view('inventario.index', compact('almacenes', 'productos', 'restricciones'));
+        // 9. HISTORIAL DE MODIFICACIONES CON FILTRO Y PAGINACIÓN INDEPENDIENTE
+        $historial = collect();
+        if (auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin', 'almacen'])) {
+            $queryHistorial = HistorialInventario::with('usuario')->orderBy('created_at', 'desc');
+
+            // Filtros de fecha
+            if ($request->has('fecha_inicio') && $request->fecha_inicio != '') {
+                $queryHistorial->whereDate('created_at', '>=', $request->fecha_inicio);
+            }
+            if ($request->has('fecha_fin') && $request->fecha_fin != '') {
+                $queryHistorial->whereDate('created_at', '<=', $request->fecha_fin);
+            }
+
+            // Paginación a 5 registros por página, usando 'h_page' en la URL para no cruzar con productos
+            $historial = $queryHistorial->paginate(5, ['*'], 'h_page')->withQueryString();
+        }
+
+        return view('inventario.index', compact('almacenes', 'productos', 'restricciones', 'historial'));
     }
 
     public function importar(Request $request)
@@ -129,7 +148,7 @@ class InventarioController extends Controller
 
                     // Si pasó el filtro, procedemos normal
                     $producto = Producto::where('codigo', $clave)->first();
-                    
+
                     if ($producto) {
                         $producto->almacenes()->syncWithoutDetaching([
                             $almacenId => ['cantidad' => $cantPresente]
@@ -139,6 +158,16 @@ class InventarioController extends Controller
                         $noEncontrados++;
                     }
                 }
+            }
+
+            // Registrar en el Historial
+            if ($actualizados > 0) {
+                $nombreAlmacen = Almacen::find($almacenId)->nombre ?? 'Desconocido';
+                HistorialInventario::create([
+                    'user_id' => Auth::id(),
+                    'accion' => 'Sincronización Masiva',
+                    'detalles' => "Se actualizaron $actualizados productos desde Excel en el almacén '$nombreAlmacen'."
+                ]);
             }
 
             DB::commit();
@@ -161,10 +190,19 @@ class InventarioController extends Controller
         ]);
 
         $producto = Producto::findOrFail($request->producto_id);
+        $almacen = Almacen::findOrFail($request->almacen_id); // Traemos el almacén para el mensaje
+        
         $producto->almacenes()->syncWithoutDetaching([
             $request->almacen_id => ['cantidad' => $request->cantidad]
         ]);
         
+        // Registrar en el Historial
+        HistorialInventario::create([
+            'user_id' => Auth::id(),
+            'accion' => 'Ajuste Manual',
+            'detalles' => "Se ajustó el stock del código {$producto->codigo} ({$producto->nombre}) a {$request->cantidad} en el almacén '{$almacen->nombre}'."
+        ]);
+
         return back()->with('mensaje', 'El stock de ' . $producto->codigo . ' ha sido ajustado manualmente.');
     }
 
@@ -177,6 +215,13 @@ class InventarioController extends Controller
         $almacen = Almacen::findOrFail($request->almacen_id_vaciar);
         DB::table('almacen_producto')->where('almacen_id', $almacen->id)->delete();
         
+        // NUEVO: Registrar en el Historial
+        HistorialInventario::create([
+            'user_id' => Auth::id(),
+            'accion' => 'Vaciado de Almacén',
+            'detalles' => "Se eliminaron todas las existencias registradas en el almacén '{$almacen->nombre}'."
+        ]);
+
         return back()->with('mensaje', '¡Reversión exitosa! El inventario del almacén "'.$almacen->nombre.'" ha sido vaciado por completo.');
     }
 

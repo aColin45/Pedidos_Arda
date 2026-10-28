@@ -139,6 +139,80 @@
         @endcan
         {{-- ======================================================= --}}
 
+        {{-- ======================================================= --}}
+        {{-- TABLA DE HISTORIAL DE MODIFICACIONES (Sólo Admins/Almacén) --}}
+        @if(auth()->user()->hasAnyRole(['admin', 'super-admin', 'superadmin', 'almacen']))
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow border-0" style="border-radius: 12px; border-left: 4px solid #36b9cc;">
+                    <div class="card-header py-3 bg-white d-flex flex-column flex-md-row align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-info mb-2 mb-md-0"><i class="fas fa-history mr-2"></i>Historial de Modificaciones</h6>
+                        
+                        {{-- Miniformulario de filtro por fechas --}}
+                        <form action="{{ route('inventarios.index') }}" method="GET" class="d-flex gap-2 align-items-center">
+                            <span class="small text-muted fw-bold">Del:</span>
+                            <input type="date" name="fecha_inicio" class="form-control form-control-sm shadow-sm" value="{{ request('fecha_inicio') }}">
+                            <span class="small text-muted fw-bold">Al:</span>
+                            <input type="date" name="fecha_fin" class="form-control form-control-sm shadow-sm" value="{{ request('fecha_fin') }}">
+                            <button type="submit" class="btn btn-sm btn-info shadow-sm" title="Filtrar"><i class="fas fa-search"></i></button>
+                            @if(request('fecha_inicio') || request('fecha_fin'))
+                                <a href="{{ route('inventarios.index') }}" class="btn btn-sm btn-secondary shadow-sm" title="Limpiar filtro"><i class="fas fa-times"></i></a>
+                            @endif
+                        </form>
+                    </div>
+                    
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 text-nowrap table-sm">
+                                <thead class="bg-light text-gray-700">
+                                    <tr>
+                                        <th class="border-0 pl-4">Fecha y Hora</th>
+                                        <th class="border-0">Usuario</th>
+                                        <th class="border-0">Acción</th>
+                                        <th class="border-0">Detalles del Ajuste</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($historial as $registro)
+                                    <tr>
+                                        <td class="pl-4 text-muted small"><i class="far fa-clock mr-1"></i>{{ $registro->created_at->format('d/m/Y h:i A') }}</td>
+                                        <td>
+                                            <div class="font-weight-bold text-dark"><i class="fas fa-user-circle text-primary mr-1"></i>{{ $registro->usuario->name ?? 'Sistema' }}</div>
+                                        </td>
+                                        <td>
+                                            @if($registro->accion == 'Sincronización Masiva')
+                                                <span class="badge bg-success text-white">{{ $registro->accion }}</span>
+                                            @elseif($registro->accion == 'Ajuste Manual')
+                                                <span class="badge bg-warning text-dark">{{ $registro->accion }}</span>
+                                            @else
+                                                <span class="badge bg-danger text-white">{{ $registro->accion }}</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-muted small" style="white-space: normal; max-width: 500px;">{{ $registro->detalles }}</td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted"><i class="fas fa-info-circle mr-2"></i>No hay registros en el rango de fechas seleccionado.</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    {{-- Paginación independiente del historial --}}
+                    @if($historial->hasPages())
+                    <div class="card-footer bg-white border-0 py-2">
+                        <div class="d-flex justify-content-end mb-0" style="font-size: 0.85rem;">
+                            {{ $historial->links('pagination::bootstrap-4') }}
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- TARJETA: TABLA DE INVENTARIO --}}
         <div class="card shadow border-0" style="border-radius: 12px;">
             <div class="card-header bg-white py-3 d-flex flex-column flex-xl-row align-items-center justify-content-between">

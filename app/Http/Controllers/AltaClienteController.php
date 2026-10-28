@@ -631,8 +631,18 @@ class AltaClienteController extends Controller
             'telefono' => 'required|string|max:50',
         ]);
 
-        $referencia = AltaReferencia::where('alta_cliente_id', $alta_id)->findOrFail($ref_id);
         $alta = AltaCliente::findOrFail($alta_id);
+
+        // --- SOLUCIÓN DEL BLOQUEO DE PERMISOS ---
+        // Verificamos si el usuario es Admin/Evaluador o si es el dueño exacto del expediente.
+        if (!Auth::user()->hasAnyRole(['admin', 'super-admin', 'superadmin']) && !Auth::user()->can('alta-evaluate')) {
+            if ($alta->user_id != Auth::id()) {
+                abort(403, 'Acceso no autorizado. Usted no es el propietario de este expediente.');
+            }
+        }
+        // ----------------------------------------
+
+        $referencia = AltaReferencia::where('alta_cliente_id', $alta_id)->findOrFail($ref_id);
 
         $referencia->update([
             'nombre' => mb_strtoupper($request->nombre),

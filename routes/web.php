@@ -146,6 +146,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/altas/guardar', [App\Http\Controllers\AltaClienteController::class, 'store'])->name('altas.store');
         Route::post('/altas/{id}/documento', [App\Http\Controllers\AltaClienteController::class, 'uploadDocumento'])->name('altas.upload');
         Route::post('/altas/{id}/enviar', [App\Http\Controllers\AltaClienteController::class, 'enviarRevision'])->name('altas.enviar');
+        Route::put('/altas/{alta_id}/referencias/{ref_id}/corregir', [App\Http\Controllers\AltaClienteController::class, 'corregirReferencia'])->name('altas.corregir_ref');
     });
 
     Route::middleware(['can:alta-evaluate'])->group(function () {
@@ -153,7 +154,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/altas/{id}/convertir', [App\Http\Controllers\AltaClienteController::class, 'convertirCliente'])->name('altas.convertir');
         Route::post('/altas/{id}/cancelar', [App\Http\Controllers\AltaClienteController::class, 'cancelarAlta'])->name('altas.cancelar');
         Route::post('/altas/{alta_id}/referencias/{ref_id}/evaluar', [App\Http\Controllers\AltaClienteController::class, 'evaluarReferencia'])->name('altas.evaluar_ref');
-        Route::put('/altas/{alta_id}/referencias/{ref_id}/corregir', [App\Http\Controllers\AltaClienteController::class, 'corregirReferencia'])->name('altas.corregir_ref');
     });
 
     Route::middleware(['can:alta-list'])->group(function () {
